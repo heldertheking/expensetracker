@@ -1,86 +1,252 @@
 name: CI
 
+# changes -> schema -> build api | build web -> test api | test web -> validate (everything) -> deploy (tags only)
+
+# Pushes only run on main and tags; every other branch is covered by its pull request,
+# so a push to an open PR does not trigger two runs.
 on:
   push:
     branches: [main]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-ALPHA'
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+env:
+  # Unformatted files fail the validation job; set to 'false' to make it warn only.
+  FORMAT_BLOCKING: 'true'
+
 jobs:
-  # Decides which test jobs are needed; lint runs regardless.
   changes:
+    name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      schema: ${{ steps.resolve.outputs.schema }}
+      api: ${{ steps.resolve.outputs.api }}
+      web: ${{ steps.resolve.outputs.web }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # README.md and docs/** match nothing, so doc-only changes skip everything.
           filters: |
-            backend:
-              - 'backend/**'
+            root: &root
               - 'package.json'
+              - 'package-lock.json'
+              - 'eslint.config.mjs'
               - '.github/workflows/ci.yml'
-            frontend:
-              - 'frontend/**'
-              - 'package.json'
-              - '.github/workflows/ci.yml'
+              - '.github/actions/**'
+            schema:
+              - *root
+              - 'packages/schema/**'
+            api:
+              - *root
+              - 'packages/schema/**'
+              - 'apps/api/**'
+            web:
+              - *root
+              - 'packages/schema/**'
+              - 'apps/web/**'
+      - name: Resolve (release tags build everything)
+        id: resolve
+        env:
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+          SCHEMA: ${{ steps.filter.outputs.schema }}
+          API: ${{ steps.filter.outputs.api }}
+          WEB: ${{ steps.filter.outputs.web }}
+        run: |
+          if [ "$IS_TAG" = "true" ]; then SCHEMA=true API=true WEB=true; fi
+          {
+            echo "schema=$SCHEMA"
+            echo "api=$API"
+            echo "web=$WEB"
+          } >> "$GITHUB_OUTPUT"
 
-  lint:
+  # api and web both import the built schema, so it runs whenever either changes.
+  build-schema:
+    name: Build schema
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
+      - run: npm run build:schema
+      - uses: actions/upload-artifact@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - name: ESLint (errors fail, warnings are annotated)
-        run: npm run lint
-      - name: Prettier (warn only)
+          name: schema-dist
+          path: packages/schema/dist
+          retention-days: 7
+
+  build-api:
+    name: Build api
+    needs: [changes, build-schema]
+    if: ${{ !cancelled() && needs.changes.outputs.api == 'true' && needs.build-schema.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: schema-dist
+          path: packages/schema/dist
+      - run: npm run typecheck -w apps/api
+      - run: npm run build -w apps/api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: apps/api/dist
+          retention-days: 7
+
+  build-web:
+    name: Build web
+    needs: [changes, build-schema]
+    if: ${{ !cancelled() && needs.changes.outputs.web == 'true' && needs.build-schema.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: schema-dist
+          path: packages/schema/dist
+      - run: npm run build -w apps/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 7
+
+  test-api:
+    name: Test api
+    needs: [changes, build-api]
+    if: ${{ !cancelled() && needs.build-api.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: schema-dist
+          path: packages/schema/dist
+      - name: Unit tests
+        run: npm test -w apps/api
+      - name: E2E tests
+        run: npm run test:e2e -w apps/api --if-present
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-reports
+          path: apps/api/coverage
+          retention-days: 7
+
+  test-web:
+    name: Test web
+    needs: [changes, build-web]
+    if: ${{ !cancelled() && needs.build-web.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: schema-dist
+          path: packages/schema/dist
+      - name: Unit tests
+        run: npm test -w apps/web
+      - name: E2E tests
+        run: npm run test:e2e -w apps/web --if-present
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-reports
+          path: apps/web/coverage
+          retention-days: 7
+
+  # Runs over the whole repo, whatever changed, once the tests are done.
+  validate:
+    name: Validate
+    needs: [changes, test-api, test-web]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # publish badges to the badges branch (main pushes only)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-reports'
+          path: reports
+      - run: npm run build:schema
+      - name: Typecheck all
+        id: typecheck
         continue-on-error: true
         run: |
-          if ! npm run format:check; then
-            echo "::warning::Prettier found unformatted files, run 'npm run format'"
-            echo "### Prettier: unformatted files" >> "$GITHUB_STEP_SUMMARY"
-            npx prettier --list-different . | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
+          npm run typecheck -w packages/schema -w apps/api -w apps/web
+      - name: ESLint all
+        id: lint
+        continue-on-error: true
+        run: npx eslint . -f json -o eslint-report.json
+      - name: Prettier all
+        id: format
+        continue-on-error: true
+        run: npx prettier --list-different . > prettier.txt
+      - name: Report
+        id: report
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+        run: node .github/scripts/report.mjs
+      - name: Annotate lint and format findings
+        if: always()
+        run: |
+          if [ "${{ steps.lint.outcome }}" = "failure" ]; then echo "::error::ESLint found errors, see the validation report"; fi
+          if [ -s prettier.txt ]; then echo "::warning::Prettier found $(wc -l < prettier.txt) unformatted files"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-badges
+          path: badges
+          retention-days: 7
+      - name: Publish badges
+        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin badges:badges 2>/dev/null || git branch badges "$(git commit-tree "$(git hash-object -t tree /dev/null)" -m 'Init badges')"
+          git worktree add ../badges-worktree badges
+          cp badges/*.json ../badges-worktree/ || true
+          cd ../badges-worktree
+          git add -A
+          git diff --cached --quiet || git commit -m "Update badges for $GITHUB_SHA"
+          git push origin badges
+
+  deploy:
+    name: Deploy
+    needs: [test-api, test-web, validate]
+    # Runs only for release tags, and only if nothing upstream failed (skipped is fine).
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require tag on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on main; refusing to deploy"
+            exit 1
           fi
-
-  backend:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck --workspace backend
-      - run: npm test --workspace backend
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-reports
-          path: backend/coverage
-
-  frontend:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck --workspace frontend
-      - run: npm test --workspace frontend
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-reports
-          path: frontend/coverage
+      - name: Deploy
+        run: |
+          echo "::warning::Deploy is not implemented yet (would deploy $GITHUB_REF_NAME)"
+          echo "### Deploy: not implemented yet ($GITHUB_REF_NAME)" >> "$GITHUB_STEP_SUMMARY"

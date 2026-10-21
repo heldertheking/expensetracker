@@ -1,0 +1,8 @@
+#!/bin/sh
+# Scan staged changes for secrets. Install gitleaks to enable:
+#   winget install gitleaks   |   brew install gitleaks
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "warning: gitleaks not installed, skipping local secret scan (CI will still scan)" >&2
+  exit 0
+fi
+exec gitleaks git --pre-commit --staged --redact --verbose

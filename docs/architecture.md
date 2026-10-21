@@ -15,12 +15,12 @@ flowchart LR
 
 ## Layers
 
-| Layer        | Responsibility                                   | Tested with                     |
-| ------------ | ------------------------------------------------ | ------------------------------- |
-| Routes       | HTTP, input validation, status codes             | Integration (supertest)         |
-| Services     | Business rules, budget/balance calculation       | Unit (repositories mocked)      |
-| Repositories | SQL access, mapped to domain types               | Integration (in-memory SQLite)  |
-| Frontend     | Components, pages, API client                    | Component (Testing Library, MSW) |
+| Layer        | Responsibility                             | Tested with                      |
+| ------------ | ------------------------------------------ | -------------------------------- |
+| Routes       | HTTP, input validation, status codes       | Integration (supertest)          |
+| Services     | Business rules, budget/balance calculation | Unit (repositories mocked)       |
+| Repositories | SQL access, mapped to domain types         | Integration (in-memory SQLite)   |
+| Frontend     | Components, pages, API client              | Component (Testing Library, MSW) |
 
 ## Domain (draft)
 

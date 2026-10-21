@@ -16,14 +16,14 @@ Rather less functionality with solid tests than much functionality with thin tes
 
 ## Milestones
 
-| #   | Milestone                                           | Target |
-| --- | --------------------------------------------------- | ------ |
-| 1   | Skeleton, CI, lint (done)                           |        |
-| 2   | Backend: balance service via TDD, then CRUD         |        |
-| 3   | Backend integration tests                           |        |
-| 4   | Frontend with component tests                       |        |
-| 5   | Coverage and reports visible, docs complete         |        |
-| 6   | Presentation (10 min)                               |        |
+| #   | Milestone                                   | Target |
+| --- | ------------------------------------------- | ------ |
+| 1   | Skeleton, CI, lint (done)                   |        |
+| 2   | Backend: balance service via TDD, then CRUD |        |
+| 3   | Backend integration tests                   |        |
+| 4   | Frontend with component tests               |        |
+| 5   | Coverage and reports visible, docs complete |        |
+| 6   | Presentation (10 min)                       |        |
 
 ## Working method
 
