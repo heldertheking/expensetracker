@@ -22,7 +22,10 @@ flowchart LR
 | Repositories | SQL access, mapped to domain types         | Integration (in-memory SQLite)   |
 | Frontend     | Components, pages, API client              | Component (Testing Library, MSW) |
 
-## Domain (draft)
+## Domain
 
-- **Project**: name, optional budget
-- **Transaction**: amount, income/expense, date, description, optional project (none = main finances)
+Defined with its validation rules in `packages/schema` ([ADR 0009](adr/0009-domain-model-and-validation-in-schema.md)).
+
+- **Views**: `main` shows every transaction, `savings` only the savings ones
+- **Project**: name, description and an optional initial budget (fixed at creation, a guide rather than a hard ceiling). Income, expense and remaining budget are derived by the server
+- **Transaction**: account (`main` or `savings`), income/expense, amount in cents, date, description, optional project (none = not part of a project)
