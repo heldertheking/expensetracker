@@ -6,3 +6,8 @@ coverage/
 .env
 .idea/
 *.log
+reports/
+badges/
+eslint-report.json
+prettier.txt
+.claude/
