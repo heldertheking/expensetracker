@@ -1,0 +1,26 @@
+name: Branch name
+
+# Pull request branches must be <type>/EXTR-<ticket number>-<slug>, see docs/adr/0007.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-name:
+    name: Check branch name
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate head branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          pattern='^(feature|hotfix|setup|release)/EXTR-[0-9]+-[A-Za-z0-9-]+$'
+          if [[ ! "$HEAD_REF" =~ $pattern ]]; then
+            echo "::error::Branch '$HEAD_REF' does not match $pattern (example: setup/EXTR-2-AI-agent-setup)"
+            exit 1
+          fi

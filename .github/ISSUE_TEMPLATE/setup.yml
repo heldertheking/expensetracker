@@ -1,0 +1,24 @@
+name: Setup
+description: Tooling, infrastructure, CI, configuration or documentation work
+labels: [setup]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue title becomes the branch name: `setup/EXTR-<issue number>-<title>`.
+        Keep the title short and descriptive.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be set up or changed, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
