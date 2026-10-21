@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "dev": "concurrently \"npm run dev:schema\" \"npm run dev:api\" \"npm run dev:web\"",
     "dev:schema": "npm run dev -w packages/schema",
     "dev:api": "npm run dev -w apps/api",
