@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const HealthSchema = z.object({
   status: z.string(),

@@ -5,20 +5,13 @@
 //   prettier.txt                                 prettier --list-different output
 //   TYPECHECK_OUTCOME, LINT_OUTCOME  step outcomes (success|failure)
 //   FORMAT_BLOCKING                              'true' makes unformatted files fail the report
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const COLORS = { green: 'brightgreen', yellow: 'yellow', red: 'red' };
 const BADGE_DIR = 'badges';
 mkdirSync(BADGE_DIR, { recursive: true });
 
-const readJson = (path) =>
-  existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
+const readJson = (path) => (existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null);
 
 // shields.io endpoint format: https://shields.io/badges/endpoint-badge
 function badge(name, label, message, color) {
@@ -38,8 +31,7 @@ for (const app of ['api', 'web']) {
   }
   const t = summary.total;
   const pct = t.lines.pct;
-  const color =
-    pct >= 80 ? COLORS.green : pct >= 60 ? COLORS.yellow : COLORS.red;
+  const color = pct >= 80 ? COLORS.green : pct >= 60 ? COLORS.yellow : COLORS.red;
   badge(`coverage-${app}`, `coverage ${app}`, `${pct}%`, color);
   rows.push(
     `| Coverage ${app} | ${pct}% lines | statements ${t.statements.pct}% · branches ${t.branches.pct}% · functions ${t.functions.pct}% |`,
@@ -50,12 +42,7 @@ for (const app of ['api', 'web']) {
 if (process.env.TYPECHECK_OUTCOME) {
   const ok = process.env.TYPECHECK_OUTCOME === 'success';
   failed ||= !ok;
-  badge(
-    'typecheck',
-    'typecheck',
-    ok ? 'passing' : 'failing',
-    ok ? COLORS.green : COLORS.red,
-  );
+  badge('typecheck', 'typecheck', ok ? 'passing' : 'failing', ok ? COLORS.green : COLORS.red);
   rows.push(`| Typecheck | ${ok ? 'passing' : 'failing'} | schema, api, web |`);
 }
 
@@ -69,17 +56,8 @@ if (eslint) {
   const errors = eslint.reduce((n, f) => n + f.errorCount, 0);
   const warnings = eslint.reduce((n, f) => n + f.warningCount, 0);
   failed ||= errors > 0;
-  const value = errors
-    ? `${errors} errors`
-    : warnings
-      ? `${warnings} warnings`
-      : 'clean';
-  badge(
-    'lint',
-    'eslint',
-    value,
-    errors ? COLORS.red : warnings ? COLORS.yellow : COLORS.green,
-  );
+  const value = errors ? `${errors} errors` : warnings ? `${warnings} warnings` : 'clean';
+  badge('lint', 'eslint', value, errors ? COLORS.red : warnings ? COLORS.yellow : COLORS.green);
   rows.push(
     `| ESLint | ${value} | ${errors} errors · ${warnings} warnings in ${eslint.length} files |`,
   );
@@ -87,17 +65,11 @@ if (eslint) {
 
 // Format
 if (existsSync('prettier.txt')) {
-  const files = readFileSync('prettier.txt', 'utf8')
-    .split('\n')
-    .filter(Boolean);
+  const files = readFileSync('prettier.txt', 'utf8').split('\n').filter(Boolean);
   const blocking = process.env.FORMAT_BLOCKING === 'true';
   failed ||= blocking && files.length > 0;
   const value = files.length ? `${files.length} files` : 'clean';
-  const color = !files.length
-    ? COLORS.green
-    : blocking
-      ? COLORS.red
-      : COLORS.yellow;
+  const color = !files.length ? COLORS.green : blocking ? COLORS.red : COLORS.yellow;
   badge('format', 'prettier', value, color);
   rows.push(`| Prettier | ${value} | ${blocking ? 'blocking' : 'warn only'} |`);
   if (files.length) {
@@ -117,6 +89,5 @@ const summary = [
   '',
 ].join('\n');
 console.log(summary);
-if (process.env.GITHUB_STEP_SUMMARY)
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 process.exit(failed ? 1 : 0);

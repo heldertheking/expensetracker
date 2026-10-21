@@ -2,9 +2,11 @@ name: CI
 
 # changes -> schema -> build api | build web -> test api | test web -> validate (everything) -> deploy (tags only)
 
+# Pushes only run on main and tags; every other branch is covered by its pull request,
+# so a push to an open PR does not trigger two runs.
 on:
   push:
-    branches: ['**']
+    branches: [main]
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-ALPHA'
@@ -18,8 +20,8 @@ permissions:
   contents: read
 
 env:
-  # Flip to 'true' once the repo is Prettier-clean to make formatting fail the pipeline.
-  FORMAT_BLOCKING: 'false'
+  # Unformatted files fail the validation job; set to 'false' to make it warn only.
+  FORMAT_BLOCKING: 'true'
 
 jobs:
   changes:

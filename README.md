@@ -25,12 +25,12 @@ Short version, details in [docs/testkonzept.md](docs/testkonzept.md).
 
 ## AI usage declaration
 
-| Role                                                  | Used                         |
-| ----------------------------------------------------- | ---------------------------- |
-| 1. Reference for detail questions                     | Yes, primarily               |
-| 2. Writing code with assistance (autocomplete)        | No / minimal                 |
-| 3. Agent generates code (e.g. Claude Code)            | Only the initial scaffolding and complex logic where noted |
-| 4. Reviewing/optimizing existing code, bug tracking   | Yes                          |
+| Role                                                | Used                                                       |
+| --------------------------------------------------- | ---------------------------------------------------------- |
+| 1. Reference for detail questions                   | Yes, primarily                                             |
+| 2. Writing code with assistance (autocomplete)      | No / minimal                                               |
+| 3. Agent generates code (e.g. Claude Code)          | Only the initial scaffolding and complex logic where noted |
+| 4. Reviewing/optimizing existing code, bug tracking | Yes                                                        |
 
 Most code is written by the author. AI is used primarily for research, help with complex logic and bug tracking. The author must be able to understand, justify and extend all code.
 

@@ -17,13 +17,13 @@ Architecture sketch: see [architecture.md](architecture.md).
 
 _(TBD, refine as features are planned)_
 
-| Area     | Feature                                         | Level                |
-| -------- | ----------------------------------------------- | -------------------- |
-| Projects | Create, update, delete project; set budget      | Unit, Integration    |
+| Area     | Feature                                                  | Level             |
+| -------- | -------------------------------------------------------- | ----------------- |
+| Projects | Create, update, delete project; set budget               | Unit, Integration |
 | Finance  | Add, edit, delete income/expense, per project or general | Unit, Integration |
-| Finance  | Balance and budget calculation (**TDD target**) | Unit                 |
-| API      | Input validation (zod), error responses         | Integration          |
-| Frontend | Transaction list, project view, transaction form           | Component            |
+| Finance  | Balance and budget calculation (**TDD target**)          | Unit              |
+| API      | Input validation (zod), error responses                  | Integration       |
+| Frontend | Transaction list, project view, transaction form         | Component         |
 
 ## 4. Features not to be tested
 
