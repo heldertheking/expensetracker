@@ -9,7 +9,7 @@ Branches and PRs need a predictable name that links back to a ticket, so humans 
 
 ## Decision
 
-Every branch is named `<type>/EXTR-<ticket number>-<ticket-title-slug>`, with `type` one of `feature`, `hotfix`, `setup` or `release`, matching the regex `^(feature|hotfix|setup|release)/EXTR-[0-9]+-[a-z0-9-]+$` (lowercase slug).
+Every branch is named `<type>/EXTR-<ticket number>-<ticket-title-slug>`, with `type` one of `feature`, `hotfix`, `setup` or `release`, matching the regex `^(feature|hotfix|setup|release)/EXTR-[0-9]+-[A-Za-z0-9-]+$`. The slug may contain uppercase letters, so existing names such as `setup/EXTR-2-AI-agent-setup` are valid; the ticket workflow itself generates lowercase slugs.
 
 - Tickets are GitHub issues created from the forms in `.github/ISSUE_TEMPLATE/` (`feature`, `hotfix`, `setup`, `release`; blank issues are disabled). Each form applies the label of its type.
 - `.github/workflows/ticket-branch.yml` runs when an issue is opened. It reads the type from the label, builds `<type>/EXTR-<issue number>-<slug>` (title lowercased, non-alphanumerics to `-`, trimmed, at most 50 characters), creates the branch from the default branch through the REST API, and comments on the issue with the branch name and a `git fetch && git switch` command. Without a type label it only comments.
@@ -25,7 +25,7 @@ Every branch is named `<type>/EXTR-<ticket number>-<ticket-title-slug>`, with `t
 ## Consequences
 
 - The issue number is the ticket number. EXTR-1 and EXTR-2 predate this workflow, and pull request #1 already took number 1, so those numbers may not line up with issue numbers.
-- The EXTR-1 pull request is expected to use `setup/EXTR-1-basic-setup-and-implementation`.
+- The EXTR-1 pull request is #2 (pull request #1 was closed by a branch rename) from branch `setup/EXTR-1-basic-setup-and-implementation`.
 - Ticket titles should be short, since the slug is cut at 50 characters.
 - The PR check only warns unless it is made required through branch protection on `main`.
 - Branches created by the workflow are pushed under the repository token, so they do not trigger CI until they have a PR.

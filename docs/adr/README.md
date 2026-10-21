@@ -11,3 +11,4 @@ Decisions that affect structure, tooling or conventions are recorded here in MAD
 | [0005](0005-security-tooling.md)                  | Security tooling                                      | accepted |
 | [0006](0006-public-repository-and-badges.md)      | Public repository and badges                          | accepted |
 | [0007](0007-branch-naming-and-ticket-workflow.md) | Branch naming and ticket workflow                     | accepted |
+| [0008](0008-no-ai-attribution.md)                 | No AI attribution in project artifacts                | accepted |

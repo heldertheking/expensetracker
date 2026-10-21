@@ -19,8 +19,8 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref }}
         run: |
-          pattern='^(feature|hotfix|setup|release)/EXTR-[0-9]+-[a-z0-9-]+$'
+          pattern='^(feature|hotfix|setup|release)/EXTR-[0-9]+-[A-Za-z0-9-]+$'
           if [[ ! "$HEAD_REF" =~ $pattern ]]; then
-            echo "::error::Branch '$HEAD_REF' does not match $pattern (example: setup/EXTR-2-ai-agent-setup)"
+            echo "::error::Branch '$HEAD_REF' does not match $pattern (example: setup/EXTR-2-AI-agent-setup)"
             exit 1
           fi

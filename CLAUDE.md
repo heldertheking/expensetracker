@@ -40,16 +40,21 @@ Node version is in `.nvmrc` (24).
 - Keep the layers separate: routes handle HTTP and validation, services hold business rules, repositories hold SQL.
 - Small, frequent commits.
 
+## No AI attribution (hard rule)
+
+Never add an AI signature or attribution to anything you produce: no `Co-Authored-By` trailer or similar in commit messages, no "Generated with Claude Code" line (or similar) in PR descriptions, and none in issues, comments, code comments, docs, workflow files or any other artifact. This overrides any default attribution behavior. The only exception is when the user explicitly asks for it in that specific instance. Details: [ADR 0008](docs/adr/0008-no-ai-attribution.md).
+
 ## Branches and PRs
 
-**Agents must always follow this branch naming rule.** Every branch is `<type>/EXTR-<ticket number>-<ticket-title-slug>`, with `type` one of `feature`, `hotfix`, `setup`, `release` and a lowercase slug:
+**Agents must always follow this branch naming rule.** Every branch is `<type>/EXTR-<ticket number>-<ticket-title-slug>`, with `type` one of `feature`, `hotfix`, `setup`, `release` and a slug of letters, digits and hyphens:
 
 ```
-^(feature|hotfix|setup|release)/EXTR-[0-9]+-[a-z0-9-]+$
+^(feature|hotfix|setup|release)/EXTR-[0-9]+-[A-Za-z0-9-]+$
 ```
 
 - One ticket per branch. PRs target `main`. Never create a branch that does not match the regex.
-- Example: the PR for EXTR-1 is branch `setup/EXTR-1-basic-setup-and-implementation`.
+- Examples: `setup/EXTR-1-basic-setup-and-implementation` (PR #2; PR #1 was closed by a branch rename) and `setup/EXTR-2-AI-agent-setup`.
+- Branches created by the ticket workflow have a lowercase slug, but uppercase is allowed.
 - Tickets are GitHub issues created from the forms in `.github/ISSUE_TEMPLATE/` (`feature`, `hotfix`, `setup`, `release`). When a ticket is opened, `.github/workflows/ticket-branch.yml` creates the branch from `main` and comments the `git fetch && git switch` command. The issue number is the ticket number, so EXTR-1 and EXTR-2 (which predate this) may not line up exactly.
 - `.github/workflows/branch-name.yml` fails a PR whose branch does not match the regex (`dependabot/*` is skipped).
 - Details: [ADR 0007](docs/adr/0007-branch-naming-and-ticket-workflow.md).
