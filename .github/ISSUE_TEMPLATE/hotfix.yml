@@ -1,0 +1,28 @@
+name: Hotfix
+description: An urgent fix for a defect on main
+labels: [hotfix]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue title becomes the branch name: `hotfix/EXTR-<issue number>-<title>`.
+        Keep the title short and descriptive.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is broken, and what is the impact?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: Steps, logs or a failing test.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Proposed fix
+      description: Optional, if you already know the cause.

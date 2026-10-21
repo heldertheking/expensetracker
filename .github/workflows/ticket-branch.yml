@@ -1,0 +1,82 @@
+name: Ticket branch
+
+# Creates <type>/EXTR-<issue number>-<title slug> from the default branch when a ticket is opened.
+# The type comes from the issue label (feature, hotfix, setup, release) set by the issue forms.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  create-branch:
+    name: Create branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // The title is user input: read it from the payload, never interpolate it into shell.
+            const { issue, repository } = context.payload;
+            const types = ['feature', 'hotfix', 'setup', 'release'];
+            const labels = issue.labels.map((label) => label.name);
+            const type = types.find((t) => labels.includes(t));
+            const { owner, repo } = context.repo;
+
+            if (!type) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body:
+                  'No branch created: this issue has none of the labels ' +
+                  `${types.map((t) => `\`${t}\``).join(', ')}. ` +
+                  'Open tickets with an issue form so the type label is applied.',
+              });
+              return;
+            }
+
+            const slug =
+              issue.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, 50)
+                .replace(/-+$/g, '') || 'ticket';
+            const branch = `${type}/EXTR-${issue.number}-${slug}`;
+
+            const base = await github.rest.git.getRef({
+              owner,
+              repo,
+              ref: `heads/${repository.default_branch}`,
+            });
+
+            let note;
+            try {
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branch}`,
+                sha: base.data.object.sha,
+              });
+              note = `Created branch \`${branch}\` from \`${repository.default_branch}\`.`;
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              note = `Branch \`${branch}\` already exists.`;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: [
+                note,
+                '',
+                '```bash',
+                `git fetch origin && git switch ${branch}`,
+                '```',
+              ].join('\n'),
+            });

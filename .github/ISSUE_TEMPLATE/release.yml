@@ -1,0 +1,31 @@
+name: Release
+description: Prepare a release
+labels: [release]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The issue title becomes the branch name: `release/EXTR-<issue number>-<title>`.
+        Releases are deployed by pushing a tag `vX.Y.Z` or `vX.Y.Z-ALPHA` on `main`.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The tag to release, for example v0.1.0 or v0.1.0-ALPHA.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is included in this release?
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Release checklist
+      value: |
+        - [ ] CI and security checks are green on `main`
+        - [ ] Release notes written
+        - [ ] Tag pushed
