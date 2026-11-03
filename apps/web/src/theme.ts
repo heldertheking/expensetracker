@@ -6,12 +6,31 @@ import { RouterLink } from './router';
 export interface ChartColors {
   /** Categorical series colors, used in this fixed order (validated as a set). */
   series: readonly [string, string, string];
+  /** Optional stroke dash patterns so line series stay distinguishable without color alone. */
+  seriesDash?: readonly [string, string, string];
+  /** Whether line charts should render point markers on each series. */
+  showMarks?: boolean;
   /** For a series that should recede, e.g. untagged spending. */
   neutral: string;
   grid: string;
   axis: string;
   /** Unfilled part of a budget meter: a light step of the primary ramp. */
   track: string;
+}
+
+export const THEME_STORAGE_KEY = 'expensetracker.theme';
+
+export const THEME_PREFERENCES = ['system', 'light', 'dark', 'high-contrast'] as const;
+export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+
+export const ACTIVE_THEMES = ['light', 'dark', 'high-contrast'] as const;
+export type ActiveTheme = (typeof ACTIVE_THEMES)[number];
+
+export interface ThemeMediaState {
+  prefersDark: boolean;
+  prefersContrast: boolean;
+  forcedColors: boolean;
+  reducedMotion?: boolean;
 }
 
 declare module '@mui/material/styles' {
@@ -29,11 +48,13 @@ declare module '@mui/material/styles' {
  */
 export interface ThemeSpec {
   mode: 'light' | 'dark';
+  highContrast?: boolean;
   primary: { main: string; dark: string; contrastText: string };
   surfaces: { page: string; paper: string };
   text: { primary: string; secondary: string; muted: string };
   status: { good: string; warning: string; critical: string };
   divider: string;
+  focusRing?: string;
   chart: ChartColors;
 }
 
@@ -54,7 +75,40 @@ export const lightSpec: ThemeSpec = {
   },
 };
 
-export function buildTheme(spec: ThemeSpec): Theme {
+export const darkSpec: ThemeSpec = lightSpec;
+
+export const highContrastSpec: ThemeSpec = lightSpec;
+
+export const themeSpecs: Record<ActiveTheme, ThemeSpec> = {
+  light: lightSpec,
+  dark: darkSpec,
+  'high-contrast': highContrastSpec,
+};
+
+export function resolveTheme(
+  preference: ThemePreference,
+  media: { prefersDark: boolean; prefersContrast: boolean; forcedColors: boolean },
+): ActiveTheme {
+  void preference;
+  void media;
+  return 'light';
+}
+
+export function readThemePreference(storage?: Pick<Storage, 'getItem'> | null): ThemePreference {
+  void storage;
+  return 'system';
+}
+
+export function writeThemePreference(
+  preference: ThemePreference,
+  storage?: Pick<Storage, 'setItem'> | null,
+): void {
+  void preference;
+  void storage;
+}
+
+export function buildTheme(spec: ThemeSpec, options?: { reducedMotion?: boolean }): Theme {
+  void options;
   return createTheme({
     palette: {
       mode: spec.mode,
