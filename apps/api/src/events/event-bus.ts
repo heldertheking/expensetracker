@@ -18,7 +18,11 @@ interface EventBusOptions {
 }
 
 interface EventBus {
-  dispatch<T extends BusinessEventType>(type: T, data: EventData[T]): EventResult[T];
+  dispatch<T extends BusinessEventType>(
+    userId: string,
+    type: T,
+    data: EventData[T],
+  ): EventResult[T];
   /** Returns a function that removes the subscriber again. */
   subscribe(subscriber: Subscriber): () => void;
 }
@@ -29,7 +33,7 @@ const reportSubscriberError = (error: unknown, event: BusinessEvent) => {
 
 /**
  * Runs every business event through the same pipeline: validate, handle and append to the
- * event log in one transaction, then notify the subscribers after the commit.
+ * event log in one transaction (with `userId`), then notify the subscribers after the commit.
  */
 function createEventBus(options: EventBusOptions): EventBus {
   const missing = BUSINESS_EVENT_TYPES.filter((type) => options.handlers[type] === undefined);
@@ -51,14 +55,19 @@ function createEventBus(options: EventBusOptions): EventBus {
   }
 
   return {
-    dispatch<T extends BusinessEventType>(type: T, data: EventData[T]): EventResult[T] {
+    dispatch<T extends BusinessEventType>(
+      userId: string,
+      type: T,
+      data: EventData[T],
+    ): EventResult[T] {
       const handler = handlers[type] as EventHandler<T>;
 
       const { result, event } = options.transaction(() => {
-        const validated = handler.validate(data);
-        const outcome = handler.handle(data, validated);
+        const validated = handler.validate(userId, data);
+        const outcome = handler.handle(userId, data, validated);
         const event = options.appendEvent({
           id: options.newId(),
+          userId,
           type,
           occurredAt: options.clock(),
           payload: outcome.payload,

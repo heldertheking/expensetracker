@@ -6,6 +6,7 @@ import type { HandlerDeps } from '../../src/events/handlers/index.js';
 import { makeProject, makeTransaction, uuid } from '../fixtures.js';
 
 const NOW = new Date('2026-11-03T10:00:00.000Z');
+const USER_ID = uuid(900);
 
 /** Handler dependencies with every repository method mocked. */
 function mockDeps(
@@ -15,8 +16,8 @@ function mockDeps(
   const transactions = data.transactions ?? [];
   const deps = {
     projects: {
-      findById: vi.fn((id: string) => projects.find((p) => p.id === id)),
-      findByName: vi.fn((name: string) =>
+      findById: vi.fn((_userId: string, id: string) => projects.find((p) => p.id === id)),
+      findByName: vi.fn((_userId: string, name: string) =>
         projects.find((p) => p.name.toLowerCase() === name.toLowerCase()),
       ),
       insert: vi.fn(),
@@ -24,7 +25,7 @@ function mockDeps(
       delete: vi.fn(),
     },
     transactions: {
-      findById: vi.fn((id: string) => transactions.find((t) => t.id === id)),
+      findById: vi.fn((_userId: string, id: string) => transactions.find((t) => t.id === id)),
       insert: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -41,11 +42,11 @@ function mockDeps(
 function run<T extends keyof ReturnType<typeof createHandlers>>(
   handlers: ReturnType<typeof createHandlers>,
   type: T,
-  data: Parameters<ReturnType<typeof createHandlers>[T]['validate']>[0],
+  data: Parameters<ReturnType<typeof createHandlers>[T]['validate']>[1],
 ) {
   const handler = handlers[type];
   // @ts-expect-error the data type is tied to T through the caller
-  return handler.handle(data, handler.validate(data));
+  return handler.handle(USER_ID, data, handler.validate(USER_ID, data));
 }
 
 const project = makeProject({ id: uuid(1), name: 'Holiday' });
@@ -70,7 +71,7 @@ describe('CreateTransactionEvent', () => {
     const outcome = run(handlers, 'CreateTransactionEvent', request);
 
     const expected = { ...request, id: uuid(42), createdAt: NOW, updatedAt: NOW };
-    expect(deps.transactions.insert).toHaveBeenCalledWith(expected);
+    expect(deps.transactions.insert).toHaveBeenCalledWith(USER_ID, expected);
     expect(outcome).toEqual({ result: expected, payload: { transaction: expected } });
   });
 
@@ -80,6 +81,7 @@ describe('CreateTransactionEvent', () => {
     run(handlers, 'CreateTransactionEvent', { ...request, projectId: project.id });
 
     expect(deps.transactions.insert).toHaveBeenCalledWith(
+      USER_ID,
       expect.objectContaining({ projectId: project.id }),
     );
   });
@@ -116,7 +118,7 @@ describe('UpdateTransactionEvent', () => {
       projectId: project.id,
       updatedAt: NOW,
     };
-    expect(deps.transactions.update).toHaveBeenCalledWith(after);
+    expect(deps.transactions.update).toHaveBeenCalledWith(USER_ID, after);
     expect(outcome).toEqual({ result: after, payload: { before: existing, after } });
   });
 
@@ -193,7 +195,7 @@ describe('DeleteTransactionEvent', () => {
 
     const outcome = run(handlers, 'DeleteTransactionEvent', { id: existing.id });
 
-    expect(deps.transactions.delete).toHaveBeenCalledWith(existing.id);
+    expect(deps.transactions.delete).toHaveBeenCalledWith(USER_ID, existing.id);
     expect(outcome).toEqual({ result: existing, payload: { transaction: existing } });
   });
 
@@ -216,7 +218,7 @@ describe('CreateProjectEvent', () => {
     const outcome = run(handlers, 'CreateProjectEvent', request);
 
     const expected = { ...request, id: uuid(42), createdAt: NOW, updatedAt: NOW };
-    expect(deps.projects.insert).toHaveBeenCalledWith(expected);
+    expect(deps.projects.insert).toHaveBeenCalledWith(USER_ID, expected);
     expect(outcome).toEqual({ result: expected, payload: { project: expected } });
   });
 
@@ -243,7 +245,7 @@ describe('UpdateProjectEvent', () => {
     });
 
     const after = { ...project, name: 'Summer holiday', updatedAt: NOW };
-    expect(deps.projects.update).toHaveBeenCalledWith(after);
+    expect(deps.projects.update).toHaveBeenCalledWith(USER_ID, after);
     expect(outcome).toEqual({ result: after, payload: { before: project, after } });
   });
 
@@ -290,8 +292,8 @@ describe('DeleteProjectEvent', () => {
 
     const outcome = run(handlers, 'DeleteProjectEvent', { id: project.id });
 
-    expect(deps.transactions.countByProject).toHaveBeenCalledWith(project.id);
-    expect(deps.projects.delete).toHaveBeenCalledWith(project.id);
+    expect(deps.transactions.countByProject).toHaveBeenCalledWith(USER_ID, project.id);
+    expect(deps.projects.delete).toHaveBeenCalledWith(USER_ID, project.id);
     expect(outcome).toEqual({ result: project, payload: { project } });
   });
 

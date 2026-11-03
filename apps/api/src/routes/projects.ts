@@ -6,6 +6,7 @@ import {
   ProjectResponse,
   UpdateProjectRequest,
 } from '@expensetracker/schema';
+import { authenticatedUserId } from '../auth/security.js';
 import type { EventBus } from '../events/event-bus.js';
 import type { ProjectService } from '../services/read-services.js';
 import { parseInput, sendParsed } from './http.js';
@@ -14,31 +15,36 @@ import { parseInput, sendParsed } from './http.js';
 function projectsRouter(deps: { bus: EventBus; projects: ProjectService }): Router {
   const router = Router();
 
-  router.get('/', (_req, res) => {
-    sendParsed(res, 200, ProjectListResponse, { items: deps.projects.list() });
+  router.get('/', (req, res) => {
+    const userId = authenticatedUserId(req);
+    sendParsed(res, 200, ProjectListResponse, { items: deps.projects.list(userId) });
   });
 
   router.post('/', (req, res) => {
+    const userId = authenticatedUserId(req);
     const request = parseInput(CreateProjectRequest, req.body);
-    const created = deps.bus.dispatch('CreateProjectEvent', request);
-    sendParsed(res, 201, ProjectResponse, deps.projects.get(created.id));
+    const created = deps.bus.dispatch(userId, 'CreateProjectEvent', request);
+    sendParsed(res, 201, ProjectResponse, deps.projects.get(userId, created.id));
   });
 
   router.get('/:id', (req, res) => {
+    const userId = authenticatedUserId(req);
     const { id } = parseInput(ProjectParams, req.params);
-    sendParsed(res, 200, ProjectResponse, deps.projects.get(id));
+    sendParsed(res, 200, ProjectResponse, deps.projects.get(userId, id));
   });
 
   router.patch('/:id', (req, res) => {
+    const userId = authenticatedUserId(req);
     const { id } = parseInput(ProjectParams, req.params);
     const patch = parseInput(UpdateProjectRequest, req.body);
-    deps.bus.dispatch('UpdateProjectEvent', { id, patch });
-    sendParsed(res, 200, ProjectResponse, deps.projects.get(id));
+    deps.bus.dispatch(userId, 'UpdateProjectEvent', { id, patch });
+    sendParsed(res, 200, ProjectResponse, deps.projects.get(userId, id));
   });
 
   router.delete('/:id', (req, res) => {
+    const userId = authenticatedUserId(req);
     const { id } = parseInput(ProjectParams, req.params);
-    deps.bus.dispatch('DeleteProjectEvent', { id });
+    deps.bus.dispatch(userId, 'DeleteProjectEvent', { id });
     res.status(204).end();
   });
 

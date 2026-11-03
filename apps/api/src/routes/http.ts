@@ -48,6 +48,9 @@ function errorHandler(log: (message: string, error: unknown) => void): ErrorRequ
       return;
     }
     if (error instanceof ApiFailure) {
+      if (error.retryAfterSeconds !== undefined) {
+        res.setHeader('Retry-After', String(error.retryAfterSeconds));
+      }
       res
         .status(STATUS_BY_CODE[error.code])
         .json(apiError(error.code, error.message, error.issues));
