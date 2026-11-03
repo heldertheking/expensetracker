@@ -81,6 +81,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - run: npm run build:schema
+      - run: npm test -w packages/schema
       - uses: actions/upload-artifact@v4
         with:
           name: schema-dist

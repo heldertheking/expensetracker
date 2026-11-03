@@ -8,7 +8,7 @@
 [![ESLint](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/heldertheking/expensetracker/badges/lint.json)](https://github.com/heldertheking/expensetracker/actions/workflows/ci.yml)
 [![Prettier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/heldertheking/expensetracker/badges/format.json)](https://github.com/heldertheking/expensetracker/actions/workflows/ci.yml)
 
-Finance tracker that groups expenses by project (M450 project).
+Finance tracker with a main and a savings account, where transactions can be tagged with projects that track a budget (M450 project). Every write runs through a business event pipeline, the database evolves through migrations, and the dashboard shows the finances as charts.
 
 - `apps/api/`: Express + TypeScript + SQLite
 - `apps/web/`: React + Vite + TypeScript
@@ -18,6 +18,8 @@ Finance tracker that groups expenses by project (M450 project).
 
 ```
 npm install
+npm run build:schema
+npm run dev     # web on http://localhost:5173, API on :3000
 npm test
 ```
 
