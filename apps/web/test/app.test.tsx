@@ -73,6 +73,39 @@ describe('App navigation', () => {
     expect(screen.getByRole('link', { name: 'Go to the dashboard' })).toHaveAttribute('href', '/');
   });
 
+  it('moves focus to the main region on navigation, but not on first load', async () => {
+    mockAll();
+    const { user } = renderApp('/');
+    await screen.findByRole('heading', { name: 'Dashboard', level: 1 });
+    expect(screen.getByRole('main')).not.toHaveFocus();
+
+    await user.click(screen.getByRole('link', { name: 'Transactions' }));
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('does not steal focus from a field the user is typing in', async () => {
+    mockAll();
+    renderApp('/');
+    await screen.findByRole('heading', { name: 'Dashboard', level: 1 });
+    const input = document.createElement('input');
+    document.body.append(input);
+    input.focus();
+    act(() => navigate('/activity'));
+    expect(input).toHaveFocus();
+    input.remove();
+  });
+
+  it('puts the project name in the document title on the project page', async () => {
+    mockAll();
+    renderApp(`/projects/${f.PROJECT_IDS.holiday}`);
+    await screen.findByRole('heading', { name: 'Holiday', level: 1 });
+    expect(document.title).toBe('Holiday · Expense Tracker');
+    act(() => navigate('/projects'));
+    expect(document.title).toBe('Projects · Expense Tracker');
+    act(() => navigate('/nope'));
+    expect(document.title).toBe('Not found · Expense Tracker');
+  });
+
   it('shows the not-found page instead of crashing on a malformed path', () => {
     renderApp('/projects/%E0%A4%A');
     expect(screen.getByText('Page not found')).toBeInTheDocument();
