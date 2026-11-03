@@ -6,7 +6,13 @@ interface PaginationProps {
   label?: string;
 }
 
-export function Pagination({ total, limit, offset, onChange, label = 'Pagination' }: PaginationProps) {
+export function Pagination({
+  total,
+  limit,
+  offset,
+  onChange,
+  label = 'Pagination',
+}: PaginationProps) {
   if (total <= limit) return null;
   const page = Math.floor(offset / limit) + 1;
   const pages = Math.ceil(total / limit);

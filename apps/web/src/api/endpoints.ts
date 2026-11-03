@@ -70,7 +70,10 @@ export const getTransaction = (id: string, signal?: Signal): Promise<Transaction
 export const createTransaction = (body: CreateTransactionRequest): Promise<Transaction> =>
   request(TransactionResponse, '/api/transactions', { method: 'POST', body });
 
-export const updateTransaction = (id: string, body: UpdateTransactionRequest): Promise<Transaction> =>
+export const updateTransaction = (
+  id: string,
+  body: UpdateTransactionRequest,
+): Promise<Transaction> =>
   request(TransactionResponse, `/api/transactions/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body,

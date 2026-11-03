@@ -75,7 +75,11 @@ export function TransactionForm({
 
   const set = <K extends keyof Values>(key: K, value: Values[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
-    setErrors(({ [key]: _removed, ...rest }) => rest);
+    setErrors((current) => {
+      const rest = { ...current };
+      delete rest[key];
+      return rest;
+    });
   };
 
   /** Builds the request body, or returns the errors found before sending anything. */

@@ -18,7 +18,6 @@ import { EmptyState } from '../States';
 
 const MAX_BARS = 7;
 
-
 interface Row {
   key: string;
   name: string;

@@ -72,8 +72,7 @@ export function describeEvent(event: BusinessEvent): EventDescription {
       return {
         tone: 'create',
         title: `Project “${p.name}” created`,
-        detail:
-          p.budgetCents === null ? 'Without a budget' : `Budget ${formatChf(p.budgetCents)}`,
+        detail: p.budgetCents === null ? 'Without a budget' : `Budget ${formatChf(p.budgetCents)}`,
       };
     }
     case 'UpdateProjectEvent': {

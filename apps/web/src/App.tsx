@@ -1,34 +1,98 @@
-import { useEffect, useState } from 'react';
-import { HealthSchema, type Health } from '@expensetracker/schema';
+import { useEffect } from 'react';
+import { Link, useRoute } from './router';
+import type { Route } from './router';
+import { DashboardPage } from './pages/DashboardPage';
+import { TransactionsPage } from './pages/TransactionsPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
+import { ActivityPage } from './pages/ActivityPage';
+import { EmptyState } from './components/States';
+
+const NAV = [
+  { to: '/', label: 'Dashboard', match: ['dashboard'] },
+  { to: '/transactions', label: 'Transactions', match: ['transactions'] },
+  { to: '/projects', label: 'Projects', match: ['projects', 'project'] },
+  { to: '/activity', label: 'Activity', match: ['activity'] },
+] as const;
+
+const TITLES: Record<Route['name'], string> = {
+  dashboard: 'Dashboard',
+  transactions: 'Transactions',
+  projects: 'Projects',
+  project: 'Project',
+  activity: 'Activity',
+  notFound: 'Not found',
+};
+
+function Page({ route }: { route: Route }) {
+  switch (route.name) {
+    case 'dashboard':
+      return <DashboardPage />;
+    case 'transactions':
+      return <TransactionsPage />;
+    case 'projects':
+      return <ProjectsPage />;
+    case 'project':
+      return <ProjectDetailPage key={route.id} id={route.id} />;
+    case 'activity':
+      return <ActivityPage />;
+    case 'notFound':
+      return (
+        <div className="page">
+          <EmptyState
+            title="Page not found"
+            action={
+              <Link to="/" className="button primary">
+                Go to the dashboard
+              </Link>
+            }
+          />
+        </div>
+      );
+  }
+}
 
 export function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const route = useRoute();
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data: unknown) => setHealth(HealthSchema.parse(data)))
-      .catch((err: Error) => setError(err.message));
-  }, []);
+    document.title = `${TITLES[route.name]} · Expense Tracker`;
+  }, [route.name]);
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Expense Tracker</h1>
-      <section style={{ marginTop: '1rem' }}>
-        <h3>API Connection Status:</h3>
-        {health && (
-          <p style={{ color: 'green' }}>
-            Connected to API: <strong>{health.status}</strong> (Uptime: {Math.round(health.uptime)}
-            s)
-          </p>
-        )}
-        {error && <p style={{ color: 'red' }}>Failed to connect to API: {error}</p>}
-        {!health && !error && <p>Checking API connection...</p>}
-      </section>
-    </main>
+    <div className="app">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+      <header className="topbar">
+        <Link to="/" className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            ◆
+          </span>
+          Expense Tracker
+        </Link>
+        <nav aria-label="Main">
+          <ul className="nav">
+            {NAV.map((item) => {
+              const active = (item.match as readonly string[]).includes(route.name);
+              return (
+                <li key={item.to}>
+                  <Link
+                    to={item.to}
+                    className={active ? 'nav-link is-active' : 'nav-link'}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </header>
+      <main id="main" tabIndex={-1}>
+        <Page route={route} />
+      </main>
+    </div>
   );
 }
