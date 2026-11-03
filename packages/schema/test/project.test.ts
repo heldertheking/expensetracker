@@ -101,8 +101,19 @@ describe('ProjectSchema', () => {
 
   it('accepts a project over budget, because the budget is not a hard ceiling', () => {
     expect(
-      ProjectSchema.safeParse(project({ remainingCents: -5_000, overBudget: true })).success,
+      ProjectSchema.safeParse(
+        project({ expenseCents: 105_000, remainingCents: -5_000, overBudget: true }),
+      ).success,
     ).toBe(true);
+  });
+
+  it('lets tagged income refill the budget', () => {
+    const refilled = project({ incomeCents: 10_000, remainingCents: 85_000 });
+    expect(ProjectSchema.safeParse(refilled).success).toBe(true);
+  });
+
+  it('rejects a remainder that does not match budget, expense and income', () => {
+    expect(ProjectSchema.safeParse(project({ remainingCents: 70_000 })).success).toBe(false);
   });
 
   it('accepts a project without a budget', () => {
@@ -122,7 +133,8 @@ describe('ProjectSchema', () => {
 
   it('rejects an inconsistent overBudget flag', () => {
     expect(ProjectSchema.safeParse(project({ overBudget: true })).success).toBe(false);
-    expect(ProjectSchema.safeParse(project({ remainingCents: -1 })).success).toBe(false);
+    const over = project({ expenseCents: 100_001, remainingCents: -1 });
+    expect(ProjectSchema.safeParse(over).success).toBe(false);
   });
 
   it('coerces timestamps that arrive as JSON strings', () => {
