@@ -37,8 +37,9 @@ export function BudgetMeter({ project }: { project: Project }) {
       </Typography>
     );
   }
-  const percent = Math.round(usage * 100);
-  const fill = Math.min(100, Math.max(0, percent));
+  // income tagged to the project can push net usage below zero; show 0% then
+  const percent = Math.max(0, Math.round(usage * 100));
+  const fill = Math.min(100, percent);
   const color = project.overBudget ? 'error' : percent >= 90 ? 'warning' : 'primary';
   return (
     <Stack spacing={0.75}>
