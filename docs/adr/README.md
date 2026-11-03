@@ -17,3 +17,4 @@ Decisions that affect structure, tooling or conventions are recorded here in MAD
 | [0011](0011-database-migrations.md)                   | Versioned, forward-only database migrations                  | accepted |
 | [0012](0012-business-event-pipeline.md)               | Writes go through a business event pipeline                  | accepted |
 | [0013](0013-frontend-charts-and-structure.md)         | Web client: MUI, MUI X Charts, small router, fetch hooks     | accepted |
+| [0015](0015-themes-and-high-contrast.md)              | Selectable Light, Dark, and WCAG AAA High-Contrast themes    | accepted |
