@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { StatsQuery, StatsResponse, YearMonth } from '../src/index.js';
+import { monthsInRange, StatsQuery, StatsResponse, YearMonth } from '../src/index.js';
 
 const flow = (month: string, incomeCents: number, expenseCents: number) => ({
   month,
@@ -40,9 +40,29 @@ describe('YearMonth', () => {
   });
 });
 
+describe('monthsInRange', () => {
+  it.each([
+    ['2026-06', '2026-06', 1],
+    ['2025-11', '2026-02', 4],
+    ['2026-01-31', '2026-03-01', 3],
+  ])('counts %s to %s as %i months', (from, to, months) => {
+    expect(monthsInRange(from, to)).toBe(months);
+  });
+});
+
 describe('StatsQuery', () => {
   it('accepts an empty query so the server picks the default range', () => {
     expect(StatsQuery.parse({})).toEqual({});
+  });
+
+  it('requires both ends of the range or neither', () => {
+    expect(StatsQuery.safeParse({ from: '2026-01-01' }).success).toBe(false);
+    expect(StatsQuery.safeParse({ to: '2026-01-01' }).success).toBe(false);
+  });
+
+  it('accepts at most 60 months', () => {
+    expect(StatsQuery.safeParse({ from: '2021-07-01', to: '2026-06-30' }).success).toBe(true);
+    expect(StatsQuery.safeParse({ from: '2021-06-30', to: '2026-06-01' }).success).toBe(false);
   });
 
   it('rejects from after to and unknown parameters', () => {
@@ -82,6 +102,7 @@ describe('StatsResponse', () => {
     const body = stats();
     body.monthly[2] = flow('2026-06', 0, 900_000);
     body.balances[2] = balance('2026-06', -750_000, 50_000);
+    body.expenseByProject[0]!.expenseCents = 1_080_000;
     expect(StatsResponse.safeParse(body).success).toBe(true);
   });
 
@@ -112,6 +133,46 @@ describe('StatsResponse', () => {
 
   it('rejects months that do not span from to to', () => {
     const body = { ...stats(), to: '2026-07' };
+    expect(StatsResponse.safeParse(body).success).toBe(false);
+  });
+
+  it('rejects a skipped month', () => {
+    const body = stats();
+    body.monthly.splice(1, 1);
+    body.balances.splice(1, 1);
+    expect(StatsResponse.safeParse(body).success).toBe(false);
+  });
+
+  it('rejects balances that do not follow the net flow', () => {
+    const body = stats();
+    body.balances[2] = balance('2026-06', 150_000, 50_000); // the net flow was -20_000
+    expect(StatsResponse.safeParse(body).success).toBe(false);
+  });
+
+  it('rejects the same project twice', () => {
+    const body = stats();
+    body.expenseByProject = [
+      { projectId: null, name: 'No project', expenseCents: 160_000 },
+      { projectId: null, name: 'No project', expenseCents: 160_000 },
+    ];
+    expect(StatsResponse.safeParse(body).success).toBe(false);
+  });
+
+  it('rejects project expenses that do not add up to the monthly expenses', () => {
+    const body = stats();
+    body.expenseByProject[1]!.expenseCents = 100_000;
+    expect(StatsResponse.safeParse(body).success).toBe(false);
+  });
+
+  it('orders projects with equal expenses by name', () => {
+    const body = stats();
+    const id = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+    body.expenseByProject = [
+      { projectId: id, name: 'Holiday', expenseCents: 160_000 },
+      { projectId: null, name: 'No project', expenseCents: 160_000 },
+    ];
+    expect(StatsResponse.safeParse(body).success).toBe(true);
+    body.expenseByProject.reverse();
     expect(StatsResponse.safeParse(body).success).toBe(false);
   });
 
