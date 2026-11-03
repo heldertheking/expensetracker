@@ -27,7 +27,21 @@ const envelope = {
   occurredAt: Timestamp,
 };
 
-const changeOf = <T extends z.ZodType>(record: T) => z.object({ before: record, after: record });
+/** Before/after snapshots of one record. Fields that can never change must be equal in both. */
+const changeOf = <T extends z.ZodObject>(record: T, immutable: readonly (keyof z.infer<T>)[]) =>
+  z.object({ before: record, after: record }).superRefine((change, ctx) => {
+    const { before, after } = change as Record<'before' | 'after', Record<string, unknown>>;
+    for (const key of immutable as string[]) {
+      if (before[key] instanceof Date && after[key] instanceof Date) {
+        if (before[key].getTime() === after[key].getTime()) continue;
+      } else if (before[key] === after[key]) continue;
+      ctx.addIssue({
+        code: 'custom',
+        message: `${String(key)} cannot change in an update`,
+        path: ['after', String(key)],
+      });
+    }
+  });
 
 const BusinessEventSchema = z.discriminatedUnion('type', [
   z.object({
@@ -38,7 +52,7 @@ const BusinessEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...envelope,
     type: z.literal('UpdateTransactionEvent'),
-    payload: changeOf(TransactionSchema),
+    payload: changeOf(TransactionSchema, ['id', 'account', 'createdAt']),
   }),
   z.object({
     ...envelope,
@@ -53,7 +67,7 @@ const BusinessEventSchema = z.discriminatedUnion('type', [
   z.object({
     ...envelope,
     type: z.literal('UpdateProjectEvent'),
-    payload: changeOf(ProjectRecordSchema),
+    payload: changeOf(ProjectRecordSchema, ['id', 'budgetCents', 'createdAt']),
   }),
   z.object({
     ...envelope,
