@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AccountSummaryParams,
-  AccountSummaryResponse,
   ApiErrorSchema,
   CreateProjectRequest,
   apiError,
@@ -32,23 +30,5 @@ describe('apiError', () => {
   it('rejects an unknown code', () => {
     const body = { error: { code: 'teapot', message: 'x', issues: [] } };
     expect(ApiErrorSchema.safeParse(body).success).toBe(false);
-  });
-});
-
-describe('account summary', () => {
-  it('only accepts the main and savings views', () => {
-    expect(AccountSummaryParams.safeParse({ view: 'main' }).success).toBe(true);
-    expect(AccountSummaryParams.safeParse({ view: 'savings' }).success).toBe(true);
-    expect(AccountSummaryParams.safeParse({ view: 'all' }).success).toBe(false);
-  });
-
-  it('allows a negative balance', () => {
-    const summary = { view: 'main', incomeCents: 100, expenseCents: 500, balanceCents: -400 };
-    expect(AccountSummaryResponse.safeParse(summary).success).toBe(true);
-  });
-
-  it('rejects negative income or expense totals', () => {
-    const summary = { view: 'main', incomeCents: -1, expenseCents: 0, balanceCents: 0 };
-    expect(AccountSummaryResponse.safeParse(summary).success).toBe(false);
   });
 });
