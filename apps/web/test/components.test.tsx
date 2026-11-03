@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { barClasses } from '@mui/x-charts/BarChart';
 import userEvent from '@testing-library/user-event';
 import { NO_PROJECT_NAME } from '@expensetracker/schema';
 import { Modal } from '../src/components/Modal';
 import { spendingRows, spendingSummary } from '../src/components/charts/ProjectSpendingChart';
 import { balanceSummary } from '../src/components/charts/BalanceChart';
 import { flowSummary } from '../src/components/charts/MonthlyFlowChart';
+import { ProjectSpendingChart } from '../src/components/charts/ProjectSpendingChart';
+import { AppThemeProvider } from '../src/theme-context';
 import { uuid } from './fixtures';
 
 describe('Modal', () => {
@@ -49,6 +52,62 @@ describe('chart data helpers', () => {
       expenseCents: 940 + 930 + 920,
       untagged: false,
     });
+  });
+
+  it('keeps the untagged row out of the fold even when it ranks low', () => {
+    const tagged = Array.from({ length: 9 }, (_, i) => ({
+      projectId: uuid(600 + i),
+      name: `P${i + 1}`,
+      expenseCents: 1000 - i * 10,
+    }));
+    const items = [...tagged, { projectId: null, name: NO_PROJECT_NAME, expenseCents: 5 }];
+    const rows = spendingRows(items);
+    expect(rows).toHaveLength(7);
+    expect(rows.filter((r) => r.untagged)).toEqual([
+      { key: 'none', name: 'No project', expenseCents: 5, untagged: true },
+    ]);
+    // only real projects are folded: P6..P9, not the untagged row
+    expect(rows.find((r) => r.key === 'other')?.expenseCents).toBe(950 + 940 + 930 + 920);
+    expect(rows.reduce((sum, r) => sum + r.expenseCents, 0)).toBe(
+      items.reduce((sum, r) => sum + r.expenseCents, 0),
+    );
+  });
+
+  it('keys rows by id, so projects named like the synthetic rows do not collide', () => {
+    const items = [
+      { projectId: uuid(700), name: 'Other projects', expenseCents: 900 },
+      { projectId: uuid(701), name: NO_PROJECT_NAME, expenseCents: 800 },
+      ...Array.from({ length: 7 }, (_, i) => ({
+        projectId: uuid(710 + i),
+        name: `P${i + 1}`,
+        expenseCents: 100 - i,
+      })),
+      { projectId: null, name: NO_PROJECT_NAME, expenseCents: 50 },
+    ];
+    const rows = spendingRows(items);
+    expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
+    expect(rows.filter((r) => r.untagged)).toHaveLength(1);
+    expect(rows.filter((r) => r.key === 'other')).toHaveLength(1);
+    expect(rows.find((r) => r.name === 'Other projects' && r.key !== 'other')).toBeDefined();
+  });
+
+  it('draws one bar per row when real projects share names with the synthetic rows', () => {
+    const items = [
+      { projectId: uuid(800), name: 'Other projects', expenseCents: 900 },
+      { projectId: uuid(801), name: NO_PROJECT_NAME, expenseCents: 800 },
+      { projectId: null, name: NO_PROJECT_NAME, expenseCents: 700 },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        projectId: uuid(810 + i),
+        name: `P${i + 1}`,
+        expenseCents: 100 - i,
+      })),
+    ];
+    const { container } = render(
+      <AppThemeProvider>
+        <ProjectSpendingChart items={items} />
+      </AppThemeProvider>,
+    );
+    expect(container.querySelectorAll(`.${barClasses.element}`)).toHaveLength(items.length);
   });
 
   it('names untagged spending and handles empty data in summaries', () => {
