@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import Sqlite from 'better-sqlite3';
 import type { Database } from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { openDatabase } from '../../src/db/database.js';
+import { openDatabase, retryWhileLocked } from '../../src/db/database.js';
 import { appliedMigrations, runMigrations } from '../../src/db/migrate.js';
 import type { Migration } from '../../src/db/migrate.js';
 import { migrations } from '../../src/db/migrations/index.js';
@@ -53,6 +53,23 @@ describe('runMigrations', () => {
     runMigrations(db, migrations.slice(0, 1), now);
 
     expect(runMigrations(db, migrations, now)).toEqual([2, 3]);
+  });
+
+  it('skips a migration that another process applied after the pending list was read', () => {
+    // Version 2 records version 3 as applied, the way a second process would between our read
+    // of schema_migrations and our turn for version 3.
+    const racing: Migration[] = [
+      { version: 1, name: 'one', up: 'CREATE TABLE one (id INTEGER)' },
+      {
+        version: 2,
+        name: 'two',
+        up: "INSERT INTO schema_migrations VALUES (3, 'three', '2026-01-01T00:00:00.000Z')",
+      },
+      { version: 3, name: 'three', up: 'CREATE TABLE one (id INTEGER)' }, // would fail if run
+    ];
+
+    expect(runMigrations(db, racing, now)).toEqual([1, 2]);
+    expect(appliedMigrations(db).map((m) => m.version)).toEqual([1, 2, 3]);
   });
 
   it('rolls back a failing migration and records nothing for it', () => {
@@ -133,5 +150,48 @@ describe('openDatabase', () => {
         .run(),
     ).toThrow(/FOREIGN KEY/);
     db.close();
+  });
+});
+
+describe('retryWhileLocked', () => {
+  const busy = () => new Sqlite.SqliteError('database is locked', 'SQLITE_BUSY');
+
+  it('retries while the database is locked and returns the result', () => {
+    let calls = 0;
+    const result = retryWhileLocked(
+      () => {
+        calls++;
+        if (calls < 3) throw busy();
+        return 'wal';
+      },
+      5,
+      1,
+    );
+
+    expect(result).toBe('wal');
+    expect(calls).toBe(3);
+  });
+
+  it('gives up after the last attempt', () => {
+    expect(() =>
+      retryWhileLocked(
+        () => {
+          throw busy();
+        },
+        2,
+        1,
+      ),
+    ).toThrow('database is locked');
+  });
+
+  it('does not retry other errors', () => {
+    let calls = 0;
+    expect(() =>
+      retryWhileLocked(() => {
+        calls++;
+        throw new Error('disk full');
+      }),
+    ).toThrow('disk full');
+    expect(calls).toBe(1);
   });
 });

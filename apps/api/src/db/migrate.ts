@@ -42,7 +42,9 @@ function appliedMigrations(db: Database): AppliedMigration[] {
 
 /**
  * Applies every pending migration in ascending order, each in its own transaction together with
- * its `schema_migrations` row. Returns the versions applied by this call.
+ * its `schema_migrations` row. Returns the versions applied by this call. Each transaction is
+ * IMMEDIATE and checks again whether its migration is still pending, so two processes opening
+ * the same fresh database never apply a migration twice.
  */
 function runMigrations(
   db: Database,
@@ -54,15 +56,20 @@ function runMigrations(
   const record = db.prepare(
     'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',
   );
+  const isApplied = db.prepare<[number]>('SELECT 1 FROM schema_migrations WHERE version = ?');
   const applied: number[] = [];
 
   for (const migration of migrations) {
     if (done.has(migration.version)) continue;
-    db.transaction(() => {
-      db.exec(migration.up);
-      record.run(migration.version, migration.name, now().toISOString());
-    })();
-    applied.push(migration.version);
+    const ran = db
+      .transaction(() => {
+        if (isApplied.get(migration.version) !== undefined) return false; // another process won
+        db.exec(migration.up);
+        record.run(migration.version, migration.name, now().toISOString());
+        return true;
+      })
+      .immediate();
+    if (ran) applied.push(migration.version);
   }
   return applied;
 }
