@@ -138,7 +138,11 @@ describe('ProjectSchema', () => {
   });
 
   it('coerces timestamps that arrive as JSON strings', () => {
-    const wire = { ...project(), createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02' };
+    const wire = {
+      ...project(),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T08:30:00+01:00',
+    };
     expect(ProjectSchema.parse(wire).createdAt).toBeInstanceOf(Date);
   });
 });
