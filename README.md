@@ -11,7 +11,7 @@
 Finance tracker with a main and a savings account, where transactions can be tagged with projects that track a budget (M450 project). Every write runs through a business event pipeline, the database evolves through migrations, and the dashboard shows the finances as charts.
 
 - `apps/api/`: Express + TypeScript + SQLite
-- `apps/web/`: React + Vite + TypeScript
+- `apps/web/`: React + Vite + TypeScript, Material UI and MUI X Charts
 - `packages/schema/`: shared zod schemas (the API contract)
 
 ## Setup
