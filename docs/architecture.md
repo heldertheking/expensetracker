@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-    User([User]) --> FE[Frontend<br/>React + Vite + charts]
+    User([User]) --> FE[Frontend<br/>React + Vite + MUI<br/>MUI X Charts]
     FE -- REST / JSON --> BE
 
     subgraph BE[Backend - Express]
@@ -26,10 +26,11 @@ flowchart LR
 | Services     | Read side: balances, budget remainder, statistics (**TDD target**)           | Unit (repositories mocked)       |
 | Repositories | SQL access, mapped to domain types                                           | Integration (in-memory SQLite)   |
 | Database     | Versioned, forward-only migrations ([0011][adr11])                           | Integration (migration runner)   |
-| Frontend     | Dashboard with charts, transaction and project pages, API client             | Component (Testing Library, MSW) |
+| Frontend     | MUI pages, MUI X Charts dashboard, API client ([0013][adr13])                | Component (Testing Library, MSW) |
 
 [adr11]: adr/0011-database-migrations.md
 [adr12]: adr/0012-business-event-pipeline.md
+[adr13]: adr/0013-frontend-charts-and-structure.md
 
 ## Domain
 

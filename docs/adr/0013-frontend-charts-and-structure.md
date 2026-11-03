@@ -1,33 +1,43 @@
-# 0013. Web client: Recharts, a small router, schema-checked fetch hooks and CSS tokens
+# 0013. Web client: Material UI, MUI X Charts, a small router and schema-checked fetch hooks
 
 - Status: accepted
 - Date: 2026-11-03
 
 ## Context
 
-The web client (`apps/web`) needs a dashboard with charts (balances over time, monthly income vs. expenses, spending per project, budget usage) plus pages for transactions, projects and the activity feed. It talks to the API described in [architecture.md](../architecture.md) and must treat the shared schema as the contract ([0003](0003-shared-zod-schema-package.md)). The backend is built in parallel, so the client is developed and tested against the contract with MSW. Testing is the focus of the project, so every choice should be easy to test in jsdom, and dependencies should stay few.
+The web client (`apps/web`) needs a dashboard with charts (balances over time, monthly income vs. expenses, spending per project, budget usage) plus pages for transactions, projects and the activity feed. It talks to the API described in [architecture.md](../architecture.md) and must treat the shared schema as the contract ([0003](0003-shared-zod-schema-package.md)). The client was developed against the contract with MSW while the backend was built in parallel. Testing is the focus of the project, so every choice should be easy to test in jsdom.
+
+A first version used Recharts for the charts and hand-written CSS for everything else. The user then asked for one consistent component framework for the whole client, so components, layout and charts now share one library and one theme.
 
 ## Decision
 
-- **Charts: Recharts 3.10.1** (exact pin, peer `react-is` 19.3.1). It supports React 19, renders SVG with React components, and has no install scripts. The stat tiles and budget meters are plain HTML, not chart components.
-  - Forms: balances as three 2px lines (total with a light area wash, main, savings); monthly flows as grouped columns (income, expenses, at most 24px wide, rounded data end) with net as a line on the same axis; spending per project as ranked horizontal bars in one color, the untagged "No project" row in neutral gray, the tail beyond seven rows folded into "Other projects"; budget usage as bullet meters where over budget fills in the critical color and carries an icon and a label, never color alone.
-  - Colors are CSS custom properties: the first three slots of a validated categorical palette, stepped separately for light and dark. One y-axis per chart; hairline grid; legend for every multi-series chart; custom tooltips (value first, series second).
-  - Accessibility: each plot is a `role="img"` named by the card title and described by a generated one-sentence summary; every chart has a "Show table" toggle with the full data, so no value is only reachable by hovering.
-- **Routing: a small router over the History API** (`src/router.tsx`, about 70 lines): five routes, no nested layouts, no loaders. `useSyncExternalStore` follows `popstate` and an app event; `Link` keeps modified clicks native. `matchRoute` is a pure function with unit tests.
-- **Data fetching: typed endpoint functions plus a `useApi` hook.** `src/api/client.ts` parses every success body with the schema (`.parse`) and throws `ContractError` when it does not match; error bodies are parsed with `ApiErrorSchema` into `ApiRequestError` (status, code, issues, `fieldErrors()` for forms). `useApi` aborts stale requests and keeps the previous data while reloading, so views dim instead of flashing. Forms validate with the same request schemas (`CreateTransactionRequest`, `validateTransactionUpdate`, ...) before sending and show server issues per field.
-- **Styling: one global stylesheet with CSS custom properties** (`src/styles.css`), dark mode via `prefers-color-scheme`, responsive grids down to phone width (the transaction table becomes a card list). No CSS framework, no CSS-in-JS.
+- **Components: Material UI** (`@mui/material` 9.5.0 with `@emotion/react` 11.14.0 and `@emotion/styled` 11.14.1, icons from `@mui/icons-material` 9.5.0). AppBar with inline links on wide screens and a Drawer on phones, Cards, Tables (rows become labelled cards on phones), TextFields (native selects, so they work well on phones and in tests), ToggleButtonGroups for account, type and range, Dialogs, Alerts, Skeletons, Chips and LinearProgress budget meters. The hand-written component CSS is gone.
+- **Theme: one `createTheme` in `src/theme.ts`**, built by `buildTheme(spec)` from a `ThemeSpec` (mode, primary, surfaces, text, status colors and chart colors). Only the light theme exists; dark mode, high contrast and a switcher are a separate change that adds specs, not component code. The theme also extends MUI with `theme.chart` (series, neutral, grid, axis and meter-track colors) and makes the app's `RouterLink` MUI's link component, so `<Link href>` and `<Button href>` navigate in-app.
+- **Charts: MUI X Charts** (`@mui/x-charts` 9.17.0, the MIT community package), so charts follow the theme. The chart forms and the palette stay as designed:
+  - balances as three 2px lines (total with a light area wash, main, savings);
+  - monthly income and expenses as grouped columns with net as a line on the same y-axis (composed with `ChartsContainer`, `BarPlot` and `LinePlot`);
+  - spending per project as ranked horizontal bars in one color, the untagged "No project" row in neutral gray, the tail beyond seven rows folded into "Other projects", compact value labels at the bar ends;
+  - budget usage as LinearProgress meters; over budget fills in the error color and carries an icon and an "Over budget" chip, never color alone.
+  - Series colors are the first three slots of a validated categorical palette (`#2a78d6`, `#eb6834`, `#1baf7a`). One y-axis per chart, hairline grid, axis tooltips with formatted CHF values. The server fills gaps with 0, so every month has a value.
+  - Accessibility: each plot is a `role="img"` named by the card title and described by a generated one-sentence summary; every chart has a legend whose keys mirror the marks (line or square) and a "Show table" toggle with the full data, so no value is only reachable by hovering.
+- **Routing: a small router over the History API** (`src/router.tsx`): five flat routes, `useSyncExternalStore` on `popstate` and an app event, and a `RouterLink` that keeps modified clicks and non-app links native. `matchRoute` is a pure function with unit tests.
+- **Data fetching: typed endpoint functions plus a `useApi` hook.** Every request goes through `src/api/client.ts`, which parses success bodies with the schema (`ContractError` when they do not match) and error bodies with `ApiErrorSchema` into `ApiRequestError` (status, code, issues, `fieldErrors()` for forms). This single place is where a later 401 can be handled. `useApi` is keyed, aborts stale requests and keeps the previous data while reloading, so views dim instead of flashing; changing the key resets it. Forms validate with the same request schemas before sending and show server issues per field.
 - **Money** stays integer cents: formatting (`CHF 1'234.50`) and parsing francs to cents work on strings and integers, never on floats.
 
 ## Options considered
 
-- **Charts:** Chart.js (canvas: nothing for Testing Library to query, needs a React wrapper); Nivo (heavier, many packages); visx or plain d3 (more code to own for axes, tooltips and resizing); hand-written SVG (full control, but axes and tooltips would be ours to maintain). Recharts gives SVG that jsdom can render with a `ResizeObserver` stub and a measured size (see `test/setup.ts`).
-- **Routing:** `react-router` 7 is the standard choice, but the app has five flat routes; the library would add a dependency and an API larger than the problem. Revisit if nested routes, loaders or URL-synced filters are needed.
-- **Data fetching:** TanStack Query brings caching, retries and deduplication, which this single-user app does not need yet, and one more dependency. Revisit if pages start sharing and invalidating a lot of data.
-- **Styling:** Tailwind or a component library would speed up layout but adds build config and dependencies; a few hundred lines of CSS with tokens cover this app and make light and dark mode one place to change.
+- **Recharts plus hand-written CSS** (the first version): small, SVG-based and easy to test, but it left the app without a component framework and with two visual systems. Replaced because the user asked for one consistent framework.
+- **Chart.js**: canvas, so nothing for Testing Library to query, and it does not follow the MUI theme.
+- **Nivo, visx or plain d3**: more packages or more chart code to own, and none of them reads the MUI theme.
+- **MUI X Charts Pro**: commercial license, not needed for these chart forms.
+- **Other component libraries** (Chakra, Mantine, Ant Design): comparable, but MUI has the matching chart package and the widest documentation.
+- **Routing:** `react-router` 7 would add a dependency for five flat routes. Revisit if nested routes, loaders or URL-synced filters are needed (for example for the login flow).
+- **Data fetching:** TanStack Query brings caching and retries this single-user app did not need yet. Revisit once several users and pages share data.
 
 ## Consequences
 
-- New dependencies: `recharts`, `react-is` (runtime) and `@testing-library/user-event` (dev). None run install scripts, so `allowScripts` is unchanged.
-- A response that drifts from the contract fails loudly as a `ContractError` instead of producing a wrong chart. Test fixtures are validated against the schema (`test/fixtures.test.ts`), so the mocks cannot drift either.
-- The router and fetch hook are ours to maintain; both are small and covered by tests.
-- Tests render the real app with MSW handlers; a coverage threshold in `apps/web/vitest.config.ts` keeps it that way.
+- MUI X Charts does what the design needs. Two points differ from the Recharts version: bar thickness comes from the band's gap ratios instead of a fixed pixel cap, and outside bar labels need headroom on the value axis (the spending chart sets its maximum to 1.8 times the largest value).
+- In jsdom, MUI X Charts measures its container with `getComputedStyle`, which reports `100%`; `test/setup.ts` stubs `ResizeObserver` and gives chart surfaces a fixed width so the marks render and can be asserted.
+- Tests query by role and label as before; MUI changed a few roles (toggle buttons instead of radios, `progressbar` instead of `meter`).
+- The bundle is larger (about 1 MB minified, mostly MUI X Charts); code-splitting the dashboard is a possible follow-up.
+- None of the new dependencies run install scripts, so `allowScripts` is unchanged.
