@@ -1,5 +1,6 @@
 import { NO_PROJECT_NAME } from '@expensetracker/schema';
 import type {
+  Account,
   MonthlyBalance,
   MonthlyFlow,
   ProjectExpense,
@@ -46,6 +47,22 @@ function statsRange(query: { from?: string; to?: string }, today: Date): MonthRa
   return { from, to, firstDay: `${from}-01`, lastDay: lastDayOf(to) };
 }
 
+/** Flows of one month and how much each account's balance changed in it. */
+interface MonthBucket {
+  incomeCents: number;
+  expenseCents: number;
+  change: Record<Account, number>;
+}
+
+const emptyBucket = (): MonthBucket => ({
+  incomeCents: 0,
+  expenseCents: 0,
+  change: { main: 0, savings: 0 },
+});
+
+const byName = (a: ProjectExpense, b: ProjectExpense) =>
+  a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+
 /**
  * Builds the dashboard statistics: income and expense of every month in the range (gaps as 0),
  * the balance per account at the end of each month (counting everything before the range too)
@@ -56,8 +73,9 @@ function buildStats(
   monthlyTotals: readonly MonthlyTotal[],
   expenses: readonly ProjectExpenseTotal[],
 ): StatsResponse {
+  // Opening balance: everything booked before the range. Inside the range, one bucket per month.
   const balance = { main: 0, savings: 0 };
-  const flows = new Map<string, { incomeCents: number; expenseCents: number }>();
+  const buckets = new Map<string, MonthBucket>();
 
   for (const row of monthlyTotals) {
     if (row.month > range.to) continue;
@@ -66,24 +84,21 @@ function buildStats(
       balance[row.account] += signed;
       continue;
     }
-    const flow = flows.get(row.month) ?? { incomeCents: 0, expenseCents: 0 };
-    if (row.type === 'income') flow.incomeCents += row.totalCents;
-    else flow.expenseCents += row.totalCents;
-    flows.set(row.month, flow);
+    const bucket = buckets.get(row.month) ?? emptyBucket();
+    bucket[row.type === 'income' ? 'incomeCents' : 'expenseCents'] += row.totalCents;
+    bucket.change[row.account] += signed;
+    buckets.set(row.month, bucket);
   }
 
   const monthly: MonthlyFlow[] = [];
   const balances: MonthlyBalance[] = [];
   for (let index = monthIndex(range.from); index <= monthIndex(range.to); index++) {
     const month = monthAt(index);
-    const { incomeCents, expenseCents } = flows.get(month) ?? { incomeCents: 0, expenseCents: 0 };
+    const { incomeCents, expenseCents, change } = buckets.get(month) ?? emptyBucket();
     monthly.push({ month, incomeCents, expenseCents, netCents: incomeCents - expenseCents });
 
-    for (const row of monthlyTotals) {
-      if (row.month === month) {
-        balance[row.account] += row.type === 'income' ? row.totalCents : -row.totalCents;
-      }
-    }
+    balance.main += change.main;
+    balance.savings += change.savings;
     balances.push({
       month,
       mainCents: balance.main,
@@ -99,9 +114,7 @@ function buildStats(
       name: row.projectId === null ? NO_PROJECT_NAME : (row.name ?? NO_PROJECT_NAME),
       expenseCents: row.expenseCents,
     }))
-    .sort(
-      (a, b) => b.expenseCents - a.expenseCents || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
-    );
+    .sort((a, b) => b.expenseCents - a.expenseCents || byName(a, b));
 
   return { from: range.from, to: range.to, monthly, balances, expenseByProject };
 }
