@@ -1,12 +1,12 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createCore } from './app.js';
-import { openDatabase } from './db/database.js';
+import { defaultDatabasePath, openDatabase } from './db/database.js';
 import { generateSeedData } from './seed/data.js';
 import { seedDatabase } from './seed/seed.js';
 
 /** `npm run seed -w apps/api`: fills an empty database (`DB_PATH`) with demo data. */
-const DB_PATH = process.env.DB_PATH || 'data/expensetracker.db';
+const DB_PATH = process.env.DB_PATH || defaultDatabasePath();
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = openDatabase(DB_PATH);
