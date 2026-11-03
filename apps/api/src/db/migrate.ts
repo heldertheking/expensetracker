@@ -1,10 +1,13 @@
 import type { Database } from 'better-sqlite3';
 
-/** One forward-only schema change. `up` is the SQL to run; applied migrations never change. */
+/**
+ * One forward-only schema change; applied migrations never change. `up` is the SQL to run, or a
+ * function for a migration that must also check its result (e.g. `PRAGMA foreign_key_check`).
+ */
 interface Migration {
   version: number;
   name: string;
-  up: string;
+  up: string | ((db: Database) => void);
 }
 
 interface AppliedMigration {
@@ -64,7 +67,8 @@ function runMigrations(
     const ran = db
       .transaction(() => {
         if (isApplied.get(migration.version) !== undefined) return false; // another process won
-        db.exec(migration.up);
+        if (typeof migration.up === 'string') db.exec(migration.up);
+        else migration.up(db);
         record.run(migration.version, migration.name, now().toISOString());
         return true;
       })
