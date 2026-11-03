@@ -32,6 +32,13 @@ describe('apiError', () => {
     expect(ApiErrorSchema.safeParse(body).success).toBe(true);
   });
 
+  it.each(['unauthorized', 'forbidden', 'too_many_requests'] as const)(
+    'accepts the authentication error code %s',
+    (code) => {
+      expect(ApiErrorSchema.safeParse(apiError(code, 'no')).success).toBe(true);
+    },
+  );
+
   it('rejects an unknown code', () => {
     const body = { error: { code: 'teapot', message: 'x', issues: [] } };
     expect(ApiErrorSchema.safeParse(body).success).toBe(false);

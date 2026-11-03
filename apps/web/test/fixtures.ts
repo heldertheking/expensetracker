@@ -206,10 +206,12 @@ export function page<T>(items: T[], { total = items.length, limit = 20, offset =
 }
 
 let sequence = 100;
+export const DEMO_USER_ID = '99999999-9999-4999-8999-999999999999';
 
 export function createTransactionEvent(t: WireTransaction = transaction()) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: t.createdAt,
     type: 'CreateTransactionEvent' as const,
@@ -223,6 +225,7 @@ export function updateTransactionEvent(
 ) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: UPDATED,
     type: 'UpdateTransactionEvent' as const,
@@ -233,6 +236,7 @@ export function updateTransactionEvent(
 export function deleteTransactionEvent(t: WireTransaction) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: UPDATED,
     type: 'DeleteTransactionEvent' as const,
@@ -252,6 +256,7 @@ const record = (p: WireProject) => ({
 export function createProjectEvent(p: WireProject = projects.holiday) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: p.createdAt,
     type: 'CreateProjectEvent' as const,
@@ -265,6 +270,7 @@ export function updateProjectEvent(
 ) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: UPDATED,
     type: 'UpdateProjectEvent' as const,
@@ -275,6 +281,7 @@ export function updateProjectEvent(
 export function deleteProjectEvent(p: WireProject) {
   return {
     id: uuid(),
+    userId: DEMO_USER_ID,
     sequence: sequence--,
     occurredAt: UPDATED,
     type: 'DeleteProjectEvent' as const,

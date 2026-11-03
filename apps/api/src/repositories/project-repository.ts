@@ -3,6 +3,7 @@ import type { ProjectRecord } from '@expensetracker/schema';
 
 interface ProjectRow {
   id: string;
+  user_id: string;
   name: string;
   name_key: string;
   description: string;
@@ -23,8 +24,9 @@ const toProject = (row: ProjectRow): ProjectRecord => ({
 /** Unicode-aware, case-insensitive key for a project name ("Ärger" and "ärger" share one). */
 const nameKey = (name: string): string => name.normalize('NFC').toLocaleLowerCase('de-CH');
 
-const toRow = (project: ProjectRecord): ProjectRow => ({
+const toRow = (userId: string, project: ProjectRecord): ProjectRow => ({
   id: project.id,
+  user_id: userId,
   name: project.name,
   name_key: nameKey(project.name),
   description: project.description,
@@ -33,48 +35,59 @@ const toRow = (project: ProjectRecord): ProjectRow => ({
   updated_at: project.updatedAt.toISOString(),
 });
 
-/** SQL access to the `projects` table. Only stored fields; totals come from the transactions. */
+/**
+ * SQL access to the `projects` table, scoped to the signed-in user in every query.
+ * Only stored fields; totals come from the user's transactions.
+ */
 function createProjectRepository(db: Database) {
-  const selectAll = db.prepare<[], ProjectRow>('SELECT * FROM projects ORDER BY name_key, name');
-  const selectById = db.prepare<[string], ProjectRow>('SELECT * FROM projects WHERE id = ?');
-  const selectByName = db.prepare<[string], ProjectRow>(
-    'SELECT * FROM projects WHERE name_key = ?',
+  const selectAll = db.prepare<[string], ProjectRow>(
+    'SELECT * FROM projects WHERE user_id = ? ORDER BY name_key, name',
+  );
+  const selectById = db.prepare<[string, string], ProjectRow>(
+    'SELECT * FROM projects WHERE user_id = ? AND id = ?',
+  );
+  const selectByName = db.prepare<[string, string], ProjectRow>(
+    'SELECT * FROM projects WHERE user_id = ? AND name_key = ?',
   );
   const insert = db.prepare<[ProjectRow]>(
-    `INSERT INTO projects (id, name, name_key, description, budget_cents, created_at, updated_at)
-     VALUES (@id, @name, @name_key, @description, @budget_cents, @created_at, @updated_at)`,
+    `INSERT INTO projects
+       (id, user_id, name, name_key, description, budget_cents, created_at, updated_at)
+     VALUES
+       (@id, @user_id, @name, @name_key, @description, @budget_cents, @created_at, @updated_at)`,
   );
   const update = db.prepare<[ProjectRow]>(
     `UPDATE projects
      SET name = @name, name_key = @name_key, description = @description, updated_at = @updated_at
-     WHERE id = @id`,
+     WHERE user_id = @user_id AND id = @id`,
   );
-  const remove = db.prepare<[string]>('DELETE FROM projects WHERE id = ?');
-  const count = db.prepare<[], { n: number }>('SELECT COUNT(*) AS n FROM projects');
+  const remove = db.prepare<[string, string]>('DELETE FROM projects WHERE user_id = ? AND id = ?');
+  const count = db.prepare<[string], { n: number }>(
+    'SELECT COUNT(*) AS n FROM projects WHERE user_id = ?',
+  );
 
   return {
-    /** All projects, by name. */
-    list: (): ProjectRecord[] => selectAll.all().map(toProject),
-    findById: (id: string): ProjectRecord | undefined => {
-      const row = selectById.get(id);
+    /** All projects of the user, by name. */
+    list: (userId: string): ProjectRecord[] => selectAll.all(userId).map(toProject),
+    findById: (userId: string, id: string): ProjectRecord | undefined => {
+      const row = selectById.get(userId, id);
       return row && toProject(row);
     },
-    /** Case-insensitive (also for umlauts), like the unique index. */
-    findByName: (name: string): ProjectRecord | undefined => {
-      const row = selectByName.get(nameKey(name));
+    /** Case-insensitive (also for umlauts), within the user's projects. */
+    findByName: (userId: string, name: string): ProjectRecord | undefined => {
+      const row = selectByName.get(userId, nameKey(name));
       return row && toProject(row);
     },
-    insert: (project: ProjectRecord): void => {
-      insert.run(toRow(project));
+    insert: (userId: string, project: ProjectRecord): void => {
+      insert.run(toRow(userId, project));
     },
     /** Writes name, description and updatedAt; the budget is fixed at creation. */
-    update: (project: ProjectRecord): void => {
-      update.run(toRow(project));
+    update: (userId: string, project: ProjectRecord): void => {
+      update.run(toRow(userId, project));
     },
-    delete: (id: string): void => {
-      remove.run(id);
+    delete: (userId: string, id: string): void => {
+      remove.run(userId, id);
     },
-    count: (): number => count.get()!.n,
+    count: (userId: string): number => count.get(userId)!.n,
   };
 }
 

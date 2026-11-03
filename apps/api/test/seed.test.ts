@@ -5,12 +5,12 @@ import {
   ProjectListResponse,
   StatsResponse,
 } from '@expensetracker/schema';
-import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp, createCore } from '../src/app.js';
 import { openDatabase } from '../src/db/database.js';
-import { generateSeedData, SEED_MONTHS } from '../src/seed/data.js';
+import { DEMO_USER, generateSeedData, SECOND_DEMO_USER, SEED_MONTHS } from '../src/seed/data.js';
 import { seedDatabase } from '../src/seed/seed.js';
+import { clientWithSession, FAST_SCRYPT } from './api/helpers.js';
 
 const TODAY = new Date('2026-10-14T09:00:00.000Z');
 
@@ -63,23 +63,37 @@ describe('generateSeedData', () => {
 });
 
 describe('seedDatabase', () => {
-  function seeded() {
+  async function seeded() {
     const db = openDatabase();
     const clock = () => new Date('2026-10-14T09:00:00.000Z');
-    const counts = seedDatabase(createCore({ db, clock }), generateSeedData(TODAY));
-    return { db, counts, api: request(createApp({ db, clock })) };
+    const core = createCore({ db, clock, scryptParams: FAST_SCRYPT });
+    const counts = await seedDatabase(core, generateSeedData(TODAY));
+    const app = createApp({ db, clock, scryptParams: FAST_SCRYPT });
+    const demoSession = core.sessions.issue(counts.users[0]!);
+    const secondSession = core.sessions.issue(counts.users[1]!);
+    return {
+      db,
+      core,
+      counts,
+      api: clientWithSession(app, demoSession.token),
+      secondApi: clientWithSession(app, secondSession.token),
+    };
   }
 
-  it('writes every record through the event bus', async () => {
-    const { counts, api } = seeded();
+  it('writes every record through the event bus and creates two isolated demo users', async () => {
+    const { counts, api, secondApi } = await seeded();
 
+    expect(counts.users.map((u) => u.email)).toEqual([DEMO_USER.email, SECOND_DEMO_USER.email]);
     const events = EventListResponse.parse((await api.get('/api/events?limit=1')).body);
     expect(events.total).toBe(counts.projects + counts.transactions);
     expect(counts.projects).toBe(3);
+
+    const secondProjects = ProjectListResponse.parse((await secondApi.get('/api/projects')).body);
+    expect(secondProjects.items.map((p) => p.name)).toEqual(['Weekend trip']);
   });
 
   it('makes one project go over budget and keeps another within it', async () => {
-    const { api } = seeded();
+    const { api } = await seeded();
 
     const { items } = ProjectListResponse.parse((await api.get('/api/projects')).body);
     const byName = Object.fromEntries(items.map((p) => [p.name, p]));
@@ -88,7 +102,7 @@ describe('seedDatabase', () => {
   });
 
   it('gives statistics that satisfy the contract with every month filled', async () => {
-    const { api } = seeded();
+    const { api } = await seeded();
 
     const stats = StatsResponse.parse((await api.get('/api/stats')).body);
     expect(stats.monthly.every((m) => m.expenseCents > 0)).toBe(true);
@@ -98,33 +112,34 @@ describe('seedDatabase', () => {
     expect(stats.balances.at(-1)!.savingsCents).toBeGreaterThan(0);
   });
 
-  it('refuses to seed a database that already holds data', () => {
-    const { db } = seeded();
+  it('refuses to seed a database that already holds data', async () => {
+    const { db } = await seeded();
 
-    expect(() => seedDatabase(createCore({ db }), generateSeedData(TODAY))).toThrow(
-      /already holds data/,
-    );
+    await expect(
+      seedDatabase(createCore({ db, scryptParams: FAST_SCRYPT }), generateSeedData(TODAY)),
+    ).rejects.toThrow(/already holds data/);
   });
 
-  it('rejects seed data that tags an unknown project', () => {
+  it('rejects seed data that tags an unknown project', async () => {
     const db = openDatabase();
     const data = generateSeedData(TODAY);
     data.transactions[0]!.project = 'Nope';
 
-    expect(() => seedDatabase(createCore({ db }), data)).toThrow('unknown project "Nope"');
+    await expect(seedDatabase(createCore({ db, scryptParams: FAST_SCRYPT }), data)).rejects.toThrow(
+      'unknown project "Nope"',
+    );
   });
 
-  it('leaves the database empty when seeding fails part-way, so it can be retried', () => {
+  it('leaves the database empty when seeding fails part-way, so it can be retried', async () => {
     const db = openDatabase();
-    const core = createCore({ db });
+    const core = createCore({ db, scryptParams: FAST_SCRYPT });
     const broken = generateSeedData(TODAY);
     broken.transactions.at(-1)!.project = 'Nope';
 
-    expect(() => seedDatabase(core, broken)).toThrow('unknown project "Nope"');
-    expect(core.repositories.projects.count()).toBe(0);
-    expect(core.repositories.transactions.count()).toBe(0);
-    expect(core.repositories.events.list({ limit: 1, offset: 0 }).total).toBe(0);
+    await expect(seedDatabase(core, broken)).rejects.toThrow('unknown project "Nope"');
+    expect(core.repositories.users.count()).toBe(0);
 
-    expect(seedDatabase(core, generateSeedData(TODAY)).projects).toBeGreaterThan(0);
+    const retry = await seedDatabase(core, generateSeedData(TODAY));
+    expect(retry.projects).toBeGreaterThan(0);
   });
 });

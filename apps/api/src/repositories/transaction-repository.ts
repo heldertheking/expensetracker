@@ -3,6 +3,7 @@ import type { Account, Transaction, TransactionType } from '@expensetracker/sche
 
 interface TransactionRow {
   id: string;
+  user_id: string;
   account: Account;
   type: TransactionType;
   amount_cents: number;
@@ -25,8 +26,9 @@ const toTransaction = (row: TransactionRow): Transaction => ({
   updatedAt: new Date(row.updated_at),
 });
 
-const toRow = (transaction: Transaction): TransactionRow => ({
+const toRow = (userId: string, transaction: Transaction): TransactionRow => ({
   id: transaction.id,
+  user_id: userId,
   account: transaction.account,
   type: transaction.type,
   amount_cents: transaction.amountCents,
@@ -79,9 +81,9 @@ interface ProjectExpenseTotal {
   expenseCents: number;
 }
 
-function whereClause(filter: Omit<TransactionFilter, 'limit' | 'offset'>) {
-  const conditions: string[] = [];
-  const params: Record<string, string> = {};
+function whereClause(userId: string, filter: Omit<TransactionFilter, 'limit' | 'offset'>) {
+  const conditions: string[] = ['user_id = @userId'];
+  const params: Record<string, string> = { userId };
   if (filter.account !== undefined) {
     conditions.push('account = @account');
     params.account = filter.account;
@@ -102,60 +104,67 @@ function whereClause(filter: Omit<TransactionFilter, 'limit' | 'offset'>) {
     conditions.push('date <= @to');
     params.to = filter.to;
   }
-  return { sql: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', params };
+  return { sql: `WHERE ${conditions.join(' AND ')}`, params };
 }
 
-/** SQL access to the `transactions` table, including the sums the read services build on. */
+/**
+ * SQL access to the `transactions` table, including the sums the read services build on.
+ * Every statement scopes rows to `user_id`.
+ */
 function createTransactionRepository(db: Database) {
-  const selectById = db.prepare<[string], TransactionRow>(
-    'SELECT * FROM transactions WHERE id = ?',
+  const selectById = db.prepare<[string, string], TransactionRow>(
+    'SELECT * FROM transactions WHERE user_id = ? AND id = ?',
   );
   const insert = db.prepare<[TransactionRow]>(
     `INSERT INTO transactions
-       (id, account, type, amount_cents, date, description, project_id, created_at, updated_at)
+       (id, user_id, account, type, amount_cents, date, description, project_id, created_at, updated_at)
      VALUES
-       (@id, @account, @type, @amount_cents, @date, @description, @project_id, @created_at, @updated_at)`,
+       (@id, @user_id, @account, @type, @amount_cents, @date, @description, @project_id, @created_at, @updated_at)`,
   );
   const update = db.prepare<[TransactionRow]>(
     `UPDATE transactions
      SET type = @type, amount_cents = @amount_cents, date = @date, description = @description,
          project_id = @project_id, updated_at = @updated_at
-     WHERE id = @id`,
+     WHERE user_id = @user_id AND id = @id`,
   );
-  const remove = db.prepare<[string]>('DELETE FROM transactions WHERE id = ?');
-  const countByProject = db.prepare<[string], { n: number }>(
-    'SELECT COUNT(*) AS n FROM transactions WHERE project_id = ?',
+  const remove = db.prepare<[string, string]>(
+    'DELETE FROM transactions WHERE user_id = ? AND id = ?',
   );
-  const count = db.prepare<[], { n: number }>('SELECT COUNT(*) AS n FROM transactions');
-  const totalsByAccount = db.prepare<[], AccountTypeTotal>(
+  const countByProject = db.prepare<[string, string], { n: number }>(
+    'SELECT COUNT(*) AS n FROM transactions WHERE user_id = ? AND project_id = ?',
+  );
+  const count = db.prepare<[string], { n: number }>(
+    'SELECT COUNT(*) AS n FROM transactions WHERE user_id = ?',
+  );
+  const totalsByAccount = db.prepare<[string], AccountTypeTotal>(
     `SELECT account, type, SUM(amount_cents) AS totalCents
-     FROM transactions GROUP BY account, type ORDER BY account, type`,
+     FROM transactions WHERE user_id = ? GROUP BY account, type ORDER BY account, type`,
   );
-  const totalsByProject = db.prepare<[], ProjectTypeTotal>(
+  const totalsByProject = db.prepare<[string], ProjectTypeTotal>(
     `SELECT project_id AS projectId, type, SUM(amount_cents) AS totalCents
-     FROM transactions WHERE project_id IS NOT NULL
+     FROM transactions WHERE user_id = ? AND project_id IS NOT NULL
      GROUP BY project_id, type ORDER BY project_id, type`,
   );
-  const monthlyTotals = db.prepare<[string], MonthlyTotal>(
+  const monthlyTotals = db.prepare<[string, string], MonthlyTotal>(
     `SELECT substr(date, 1, 7) AS month, account, type, SUM(amount_cents) AS totalCents
-     FROM transactions WHERE date <= ?
+     FROM transactions WHERE user_id = ? AND date <= ?
      GROUP BY month, account, type ORDER BY month, account, type`,
   );
-  const expenseByProject = db.prepare<[string, string], ProjectExpenseTotal>(
+  const expenseByProject = db.prepare<[string, string, string], ProjectExpenseTotal>(
     `SELECT t.project_id AS projectId, p.name AS name, SUM(t.amount_cents) AS expenseCents
-     FROM transactions t LEFT JOIN projects p ON p.id = t.project_id
-     WHERE t.type = 'expense' AND t.date BETWEEN ? AND ?
+     FROM transactions t LEFT JOIN projects p ON p.id = t.project_id AND p.user_id = t.user_id
+     WHERE t.user_id = ? AND t.type = 'expense' AND t.date BETWEEN ? AND ?
      GROUP BY t.project_id ORDER BY expenseCents DESC, p.name`,
   );
 
   return {
-    findById: (id: string): Transaction | undefined => {
-      const row = selectById.get(id);
+    findById: (userId: string, id: string): Transaction | undefined => {
+      const row = selectById.get(userId, id);
       return row && toTransaction(row);
     },
     /** Newest first: by date, then by creation. */
-    list: (filter: TransactionFilter): TransactionPage => {
-      const where = whereClause(filter);
+    list: (userId: string, filter: TransactionFilter): TransactionPage => {
+      const where = whereClause(userId, filter);
       const total = db
         .prepare<[Record<string, string>], { n: number }>(
           `SELECT COUNT(*) AS n FROM transactions ${where.sql}`,
@@ -169,25 +178,27 @@ function createTransactionRepository(db: Database) {
         .all({ ...where.params, limit: filter.limit, offset: filter.offset });
       return { items: rows.map(toTransaction), total };
     },
-    insert: (transaction: Transaction): void => {
-      insert.run(toRow(transaction));
+    insert: (userId: string, transaction: Transaction): void => {
+      insert.run(toRow(userId, transaction));
     },
     /** The account is fixed, so it is never written. */
-    update: (transaction: Transaction): void => {
-      update.run(toRow(transaction));
+    update: (userId: string, transaction: Transaction): void => {
+      update.run(toRow(userId, transaction));
     },
-    delete: (id: string): void => {
-      remove.run(id);
+    delete: (userId: string, id: string): void => {
+      remove.run(userId, id);
     },
-    count: (): number => count.get()!.n,
-    countByProject: (projectId: string): number => countByProject.get(projectId)!.n,
-    totalsByAccount: (): AccountTypeTotal[] => totalsByAccount.all(),
-    totalsByProject: (): ProjectTypeTotal[] => totalsByProject.all(),
+    count: (userId: string): number => count.get(userId)!.n,
+    countByProject: (userId: string, projectId: string): number =>
+      countByProject.get(userId, projectId)!.n,
+    totalsByAccount: (userId: string): AccountTypeTotal[] => totalsByAccount.all(userId),
+    totalsByProject: (userId: string): ProjectTypeTotal[] => totalsByProject.all(userId),
     /** Every month with transactions up to and including `toDate`, oldest first. */
-    monthlyTotals: (toDate: string): MonthlyTotal[] => monthlyTotals.all(toDate),
+    monthlyTotals: (userId: string, toDate: string): MonthlyTotal[] =>
+      monthlyTotals.all(userId, toDate),
     /** Expenses between two dates (inclusive) per project tag, largest first. */
-    expenseByProject: (fromDate: string, toDate: string): ProjectExpenseTotal[] =>
-      expenseByProject.all(fromDate, toDate),
+    expenseByProject: (userId: string, fromDate: string, toDate: string): ProjectExpenseTotal[] =>
+      expenseByProject.all(userId, fromDate, toDate),
   };
 }
 

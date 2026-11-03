@@ -40,11 +40,11 @@ interface HandlerOutcome<T extends BusinessEventType> {
 /**
  * One handler per business event. `validate` runs the rules that need data and returns what
  * `handle` needs (e.g. the stored record), so nothing is loaded twice. Both run inside the
- * event's transaction; throwing from either rolls everything back.
+ * event's transaction and are scoped to `userId`; throwing from either rolls everything back.
  */
 interface EventHandler<T extends BusinessEventType, V = unknown> {
-  validate(data: EventData[T]): V;
-  handle(data: EventData[T], validated: V): HandlerOutcome<T>;
+  validate(userId: string, data: EventData[T]): V;
+  handle(userId: string, data: EventData[T], validated: V): HandlerOutcome<T>;
 }
 
 type EventHandlers = { [T in BusinessEventType]: EventHandler<T> };

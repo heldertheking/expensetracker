@@ -17,16 +17,42 @@ interface SeedTransaction {
   project?: string;
 }
 
-interface SeedData {
+interface SeedAccountCredentials {
+  email: string;
+  displayName: string;
+  password: string;
+}
+
+interface SecondarySeedUser extends SeedAccountCredentials {
   projects: SeedProject[];
   transactions: SeedTransaction[];
 }
+
+interface SeedData {
+  user?: SeedAccountCredentials;
+  projects: SeedProject[];
+  transactions: SeedTransaction[];
+  secondaryUser?: SecondarySeedUser;
+}
+
+const DEMO_USER: SeedAccountCredentials = {
+  email: 'demo@example.com',
+  displayName: 'Demo User',
+  password: 'demo-password-1234',
+};
+
+const SECOND_DEMO_USER: SeedAccountCredentials = {
+  email: 'alex@example.com',
+  displayName: 'Alex Rivera',
+  password: 'demo-password-1234',
+};
 
 const SEED_MONTHS = 12;
 
 const HOLIDAY = 'Summer holiday';
 const BIKE = 'New bike';
 const OFFICE = 'Home office';
+const WEEKEND_TRIP = 'Weekend trip';
 
 const PROJECTS: SeedProject[] = [
   { name: HOLIDAY, description: 'Two weeks in Portugal', budgetCents: 300_000 },
@@ -217,8 +243,8 @@ function monthlyTransactions(today: Date, monthsAgo: number): SeedTransaction[] 
 
 /**
  * Realistic demo data for the dashboard: three projects (one over budget, one without a budget)
- * and the 12 months up to `today` of main and savings transactions. Nothing is dated after
- * `today`. Deterministic, so the same day always gives the same data.
+ * and the 12 months up to `today` of main and savings transactions for `demo@example.com`, plus
+ * a second isolated demo user (`alex@example.com`) with their own project and transactions.
  */
 function generateSeedData(today: Date): SeedData {
   const last = today.toISOString().slice(0, 10);
@@ -229,13 +255,60 @@ function generateSeedData(today: Date): SeedData {
   for (const { monthsAgo, day, ...rest } of PROJECT_TRANSACTIONS) {
     transactions.push({ ...rest, date: dateIn(today, monthsAgo, day) });
   }
+
+  const secondaryRaw: SeedTransaction[] = [
+    {
+      account: 'main',
+      type: 'income',
+      amountCents: 460_000,
+      date: dateIn(today, 1, 25),
+      description: 'Salary',
+    },
+    {
+      account: 'savings',
+      type: 'income',
+      amountCents: 150_000,
+      date: dateIn(today, 1, 26),
+      description: 'Savings deposit',
+    },
+    {
+      account: 'main',
+      type: 'expense',
+      amountCents: 18_500,
+      date: dateIn(today, 1, 12),
+      description: 'Train tickets to Zermatt',
+      project: WEEKEND_TRIP,
+    },
+    {
+      account: 'main',
+      type: 'expense',
+      amountCents: 32_000,
+      date: dateIn(today, 1, 14),
+      description: 'Mountain hut stay',
+      project: WEEKEND_TRIP,
+    },
+  ];
+  const secondaryTransactions = secondaryRaw.filter((t) => t.date <= last);
+
   return {
+    user: { ...DEMO_USER },
     projects: PROJECTS.map((p) => ({ ...p })),
     transactions: transactions
       .filter((t) => t.date <= last)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    secondaryUser: {
+      ...SECOND_DEMO_USER,
+      projects: [
+        {
+          name: WEEKEND_TRIP,
+          description: 'Hiking weekend in the Alps',
+          budgetCents: 80_000,
+        },
+      ],
+      transactions: secondaryTransactions,
+    },
   };
 }
 
-export { generateSeedData, SEED_MONTHS };
-export type { SeedData, SeedProject, SeedTransaction };
+export { DEMO_USER, generateSeedData, SECOND_DEMO_USER, SEED_MONTHS };
+export type { SecondarySeedUser, SeedAccountCredentials, SeedData, SeedProject, SeedTransaction };

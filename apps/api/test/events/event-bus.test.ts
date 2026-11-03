@@ -8,20 +8,22 @@ import type { EventHandler, EventHandlers } from '../../src/events/types.js';
 import type { NewBusinessEvent } from '../../src/repositories/event-repository.js';
 import { createEventRepository } from '../../src/repositories/event-repository.js';
 import { createProjectRepository } from '../../src/repositories/project-repository.js';
+import { createUserRepository } from '../../src/repositories/user-repository.js';
 import { makeProject, uuid } from '../fixtures.js';
 
 const OCCURRED_AT = new Date('2026-11-03T10:00:00.000Z');
+const USER_ID = uuid(900);
 const project = makeProject();
 
 /** A fake handler for any event type that records each stage in `log`. */
 function fakeHandler(log: string[], name: string): EventHandler<BusinessEventType> {
   return {
-    validate: (data) => {
-      log.push(`${name}.validate`);
+    validate: (userId, data) => {
+      log.push(`${name}.validate(${userId})`);
       return { validated: data };
     },
-    handle: (_data, validated) => {
-      log.push(`${name}.handle(${JSON.stringify(validated)})`);
+    handle: (userId, _data, validated) => {
+      log.push(`${name}.handle(${userId},${JSON.stringify(validated)})`);
       return { result: project, payload: { project } } as never;
     },
   };
@@ -75,12 +77,12 @@ describe('createEventBus', () => {
   it('runs validate, handle and append in that order inside one transaction', () => {
     const { bus, log } = setup();
 
-    bus.dispatch('DeleteProjectEvent', { id: project.id });
+    bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id });
 
     expect(log).toEqual([
       'begin',
-      'DeleteProjectEvent.validate',
-      `DeleteProjectEvent.handle({"validated":{"id":"${project.id}"}})`,
+      `DeleteProjectEvent.validate(${USER_ID})`,
+      `DeleteProjectEvent.handle(${USER_ID},{"validated":{"id":"${project.id}"}})`,
       'append DeleteProjectEvent',
       'commit',
     ]);
@@ -90,20 +92,25 @@ describe('createEventBus', () => {
     const { bus } = setup();
 
     expect(
-      bus.dispatch('CreateProjectEvent', { name: 'x', description: '', budgetCents: null }),
+      bus.dispatch(USER_ID, 'CreateProjectEvent', {
+        name: 'x',
+        description: '',
+        budgetCents: null,
+      }),
     ).toBe(project);
   });
 
-  it('appends the payload with a new id and the time of the clock', () => {
+  it('appends the payload with userId, a new id and the time of the clock', () => {
     const appendEvent = vi.fn(
       (event: NewBusinessEvent) => ({ ...event, sequence: 1 }) as BusinessEvent,
     );
     const { bus } = setup({ appendEvent });
 
-    bus.dispatch('UpdateProjectEvent', { id: project.id, patch: { name: 'New' } });
+    bus.dispatch(USER_ID, 'UpdateProjectEvent', { id: project.id, patch: { name: 'New' } });
 
     expect(appendEvent).toHaveBeenCalledWith({
       id: uuid(1),
+      userId: USER_ID,
       type: 'UpdateProjectEvent',
       occurredAt: OCCURRED_AT,
       payload: { project },
@@ -122,7 +129,11 @@ describe('createEventBus', () => {
     const { bus, log: busLog } = setup({ handlers });
 
     expect(() =>
-      bus.dispatch('CreateProjectEvent', { name: 'x', description: '', budgetCents: null }),
+      bus.dispatch(USER_ID, 'CreateProjectEvent', {
+        name: 'x',
+        description: '',
+        budgetCents: null,
+      }),
     ).toThrow('invalid');
     expect(busLog).toEqual(['begin', 'rollback']);
   });
@@ -138,7 +149,9 @@ describe('createEventBus', () => {
     const subscriber = vi.fn();
     const { bus, log } = setup({ handlers, subscribers: [subscriber] });
 
-    expect(() => bus.dispatch('DeleteProjectEvent', { id: project.id })).toThrow('handler failed');
+    expect(() => bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id })).toThrow(
+      'handler failed',
+    );
     expect(log).toEqual(['begin', 'rollback']);
     expect(subscriber).not.toHaveBeenCalled();
   });
@@ -150,7 +163,9 @@ describe('createEventBus', () => {
       },
     });
 
-    expect(() => bus.dispatch('DeleteProjectEvent', { id: project.id })).toThrow('log is full');
+    expect(() => bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id })).toThrow(
+      'log is full',
+    );
     expect(log.at(-1)).toBe('rollback');
   });
 
@@ -160,7 +175,7 @@ describe('createEventBus', () => {
       subscribers: [(event) => order.push(`${log.at(-1)}: ${event.type} #${event.sequence}`)],
     });
 
-    bus.dispatch('DeleteProjectEvent', { id: project.id });
+    bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id });
 
     expect(order).toEqual(['commit: DeleteProjectEvent #1']);
   });
@@ -178,7 +193,7 @@ describe('createEventBus', () => {
       onSubscriberError,
     });
 
-    expect(bus.dispatch('DeleteProjectEvent', { id: project.id })).toBe(project);
+    expect(bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id })).toBe(project);
     expect(log).toContain('commit');
     expect(onSubscriberError).toHaveBeenCalledWith(
       new Error('subscriber failed'),
@@ -197,7 +212,7 @@ describe('createEventBus', () => {
       ],
     });
 
-    bus.dispatch('DeleteProjectEvent', { id: project.id });
+    bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id });
 
     expect(error).toHaveBeenCalledWith(
       'subscriber failed for DeleteProjectEvent #1',
@@ -211,10 +226,10 @@ describe('createEventBus', () => {
     const { bus } = setup();
 
     const unsubscribe = bus.subscribe(subscriber);
-    bus.dispatch('DeleteProjectEvent', { id: project.id });
+    bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id });
     unsubscribe();
     unsubscribe();
-    bus.dispatch('DeleteProjectEvent', { id: project.id });
+    bus.dispatch(USER_ID, 'DeleteProjectEvent', { id: project.id });
 
     expect(subscriber).toHaveBeenCalledOnce();
   });
@@ -223,13 +238,22 @@ describe('createEventBus', () => {
 describe('event bus with SQLite', () => {
   function sqliteSetup(appendFails: boolean) {
     const db = openDatabase();
+    const users = createUserRepository(db);
+    users.insert({
+      id: USER_ID,
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      passwordHash: 'scrypt$1024$8$1$aaaa$bbbb',
+      createdAt: OCCURRED_AT,
+      updatedAt: OCCURRED_AT,
+    });
     const projects = createProjectRepository(db);
     const events = createEventRepository(db);
     const handlers = fakeHandlers([]);
     handlers.CreateProjectEvent = {
       validate: () => undefined,
-      handle: () => {
-        projects.insert(project);
+      handle: (userId) => {
+        projects.insert(userId, project);
         return { result: project, payload: { project } };
       },
     };
@@ -252,12 +276,13 @@ describe('event bus with SQLite', () => {
   it('stores the state change and the recorded event together', () => {
     const { db, projects, events, bus } = sqliteSetup(false);
 
-    bus.dispatch('CreateProjectEvent', request);
+    bus.dispatch(USER_ID, 'CreateProjectEvent', request);
 
-    expect(projects.findById(project.id)).toEqual(project);
-    expect(events.list({ limit: 10, offset: 0 }).items).toEqual([
+    expect(projects.findById(USER_ID, project.id)).toEqual(project);
+    expect(events.list(USER_ID, { limit: 10, offset: 0 }).items).toEqual([
       {
         id: uuid(1),
+        userId: USER_ID,
         sequence: 1,
         type: 'CreateProjectEvent',
         occurredAt: OCCURRED_AT,
@@ -270,8 +295,8 @@ describe('event bus with SQLite', () => {
   it('undoes the state change when the event cannot be appended', () => {
     const { db, projects, bus } = sqliteSetup(true);
 
-    expect(() => bus.dispatch('CreateProjectEvent', request)).toThrow('append failed');
-    expect(projects.findById(project.id)).toBeUndefined();
+    expect(() => bus.dispatch(USER_ID, 'CreateProjectEvent', request)).toThrow('append failed');
+    expect(projects.findById(USER_ID, project.id)).toBeUndefined();
     db.close();
   });
 });

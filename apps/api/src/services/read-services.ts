@@ -43,7 +43,8 @@ function createAccountService(deps: {
   transactions: Pick<TransactionRepository, 'totalsByAccount'>;
 }) {
   return {
-    summary: (): AccountsResponse => accountBalances(deps.transactions.totalsByAccount()),
+    summary: (userId: string): AccountsResponse =>
+      accountBalances(deps.transactions.totalsByAccount(userId)),
   };
 }
 
@@ -53,15 +54,15 @@ function createProjectService(deps: {
   transactions: Pick<TransactionRepository, 'totalsByProject'>;
 }) {
   return {
-    list: (): Project[] => {
-      const totals = deps.transactions.totalsByProject();
-      return deps.projects.list().map((p) => withProjectTotals(p, sumsOf(totals, p.id)));
+    list: (userId: string): Project[] => {
+      const totals = deps.transactions.totalsByProject(userId);
+      return deps.projects.list(userId).map((p) => withProjectTotals(p, sumsOf(totals, p.id)));
     },
-    /** Throws `not_found` for an unknown id. */
-    get: (id: string): Project => {
-      const project = deps.projects.findById(id);
+    /** Throws `not_found` for an unknown id (or a project owned by another user). */
+    get: (userId: string, id: string): Project => {
+      const project = deps.projects.findById(userId, id);
       if (project === undefined) throw notFound('project', id);
-      return withProjectTotals(project, sumsOf(deps.transactions.totalsByProject(), id));
+      return withProjectTotals(project, sumsOf(deps.transactions.totalsByProject(userId), id));
     },
   };
 }
@@ -71,14 +72,14 @@ function createTransactionService(deps: {
   transactions: Pick<TransactionRepository, 'list' | 'findById'>;
 }) {
   return {
-    list: (query: ListTransactionsQuery): Page<Transaction> => ({
-      ...deps.transactions.list(query),
+    list: (userId: string, query: ListTransactionsQuery): Page<Transaction> => ({
+      ...deps.transactions.list(userId, query),
       limit: query.limit,
       offset: query.offset,
     }),
-    /** Throws `not_found` for an unknown id. */
-    get: (id: string): Transaction => {
-      const transaction = deps.transactions.findById(id);
+    /** Throws `not_found` for an unknown id (or a transaction owned by another user). */
+    get: (userId: string, id: string): Transaction => {
+      const transaction = deps.transactions.findById(userId, id);
       if (transaction === undefined) throw notFound('transaction', id);
       return transaction;
     },
@@ -88,8 +89,8 @@ function createTransactionService(deps: {
 /** The activity feed. */
 function createEventService(deps: { events: Pick<EventRepository, 'list'> }) {
   return {
-    list: (query: ListEventsQuery): Page<BusinessEvent> => ({
-      ...deps.events.list(query),
+    list: (userId: string, query: ListEventsQuery): Page<BusinessEvent> => ({
+      ...deps.events.list(userId, query),
       limit: query.limit,
       offset: query.offset,
     }),
@@ -102,12 +103,12 @@ function createStatsService(deps: {
   clock: () => Date;
 }) {
   return {
-    stats: (query: StatsQuery): StatsResponse => {
+    stats: (userId: string, query: StatsQuery): StatsResponse => {
       const range = statsRange(query, deps.clock());
       return buildStats(
         range,
-        deps.transactions.monthlyTotals(range.lastDay),
-        deps.transactions.expenseByProject(range.firstDay, range.lastDay),
+        deps.transactions.monthlyTotals(userId, range.lastDay),
+        deps.transactions.expenseByProject(userId, range.firstDay, range.lastDay),
       );
     },
   };

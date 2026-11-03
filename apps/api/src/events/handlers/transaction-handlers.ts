@@ -4,26 +4,30 @@ import { invalid, notFound, unprocessable } from '../../errors.js';
 import type { EventHandler } from '../types.js';
 import type { HandlerDeps } from './deps.js';
 
-/** A transaction may only be tagged with a project that exists (422 otherwise). */
-function assertProjectExists(deps: HandlerDeps, projectId: string | null | undefined): void {
+/** A transaction may only be tagged with a project that exists for this user (422 otherwise). */
+function assertProjectExists(
+  deps: HandlerDeps,
+  userId: string,
+  projectId: string | null | undefined,
+): void {
   if (projectId === null || projectId === undefined) return;
-  if (deps.projects.findById(projectId) === undefined) {
+  if (deps.projects.findById(userId, projectId) === undefined) {
     throw unprocessable(`project ${projectId} does not exist`, [
       { path: 'projectId', message: 'the tagged project does not exist' },
     ]);
   }
 }
 
-function existingTransaction(deps: HandlerDeps, id: string): Transaction {
-  const transaction = deps.transactions.findById(id);
+function existingTransaction(deps: HandlerDeps, userId: string, id: string): Transaction {
+  const transaction = deps.transactions.findById(userId, id);
   if (transaction === undefined) throw notFound('transaction', id);
   return transaction;
 }
 
 function createTransactionHandler(deps: HandlerDeps): EventHandler<'CreateTransactionEvent', void> {
   return {
-    validate: (data) => assertProjectExists(deps, data.projectId),
-    handle: (data) => {
+    validate: (userId, data) => assertProjectExists(deps, userId, data.projectId),
+    handle: (userId, data) => {
       const now = deps.clock();
       const transaction: Transaction = {
         id: deps.newId(),
@@ -36,7 +40,7 @@ function createTransactionHandler(deps: HandlerDeps): EventHandler<'CreateTransa
         createdAt: now,
         updatedAt: now,
       };
-      deps.transactions.insert(transaction);
+      deps.transactions.insert(userId, transaction);
       return { result: transaction, payload: { transaction } };
     },
   };
@@ -46,14 +50,16 @@ function updateTransactionHandler(
   deps: HandlerDeps,
 ): EventHandler<'UpdateTransactionEvent', Transaction> {
   return {
-    validate: ({ id, patch }) => {
-      const existing = existingTransaction(deps, id);
+    validate: (userId, { id, patch }) => {
+      const existing = existingTransaction(deps, userId, id);
       const issues = validateTransactionUpdate(existing, patch);
       if (issues.length > 0) throw invalid(issues);
-      if (patch.projectId !== existing.projectId) assertProjectExists(deps, patch.projectId);
+      if (patch.projectId !== existing.projectId) {
+        assertProjectExists(deps, userId, patch.projectId);
+      }
       return existing;
     },
-    handle: ({ patch }, before) => {
+    handle: (userId, { patch }, before) => {
       const after: Transaction = {
         ...before,
         type: patch.type ?? before.type,
@@ -63,7 +69,7 @@ function updateTransactionHandler(
         projectId: patch.projectId === undefined ? before.projectId : patch.projectId,
         updatedAt: deps.clock(),
       };
-      deps.transactions.update(after);
+      deps.transactions.update(userId, after);
       return { result: after, payload: { before, after } };
     },
   };
@@ -73,9 +79,9 @@ function deleteTransactionHandler(
   deps: HandlerDeps,
 ): EventHandler<'DeleteTransactionEvent', Transaction> {
   return {
-    validate: ({ id }) => existingTransaction(deps, id),
-    handle: (_data, transaction) => {
-      deps.transactions.delete(transaction.id);
+    validate: (userId, { id }) => existingTransaction(deps, userId, id),
+    handle: (userId, _data, transaction) => {
+      deps.transactions.delete(userId, transaction.id);
       return { result: transaction, payload: { transaction } };
     },
   };

@@ -19,6 +19,27 @@ const tableNames = (db: Database) =>
     }[]
   ).map((row) => row.name);
 
+function insertUser(db: Database, id: string, email = `${id}@example.com`) {
+  db.prepare(
+    `INSERT INTO users (id, email, display_name, password_hash, created_at, updated_at)
+     VALUES (?, ?, 'x', 'hash', 'now', 'now')`,
+  ).run(id, email);
+}
+
+function insertProject(db: Database, id: string, userId: string, nameKey = id) {
+  db.prepare(
+    `INSERT INTO projects (id, user_id, name, name_key, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'now', 'now')`,
+  ).run(id, userId, nameKey, nameKey);
+}
+
+function insertTransaction(db: Database, id: string, userId: string, projectId: string | null) {
+  db.prepare(
+    `INSERT INTO transactions (id, user_id, account, type, amount_cents, date, description, project_id, created_at, updated_at)
+     VALUES (?, ?, 'main', 'income', 1, '2026-01-01', 'x', ?, 'now', 'now')`,
+  ).run(id, userId, projectId);
+}
+
 describe('runMigrations', () => {
   let db: Database;
 
@@ -31,14 +52,24 @@ describe('runMigrations', () => {
   it('applies every migration on a fresh database and records each one', () => {
     const applied = runMigrations(db, migrations, now);
 
-    expect(applied).toEqual([1, 2, 3]);
+    expect(applied).toEqual([1, 2, 3, 4, 5, 6]);
     expect(appliedMigrations(db)).toEqual([
       { version: 1, name: 'create-projects', appliedAt: NOW.toISOString() },
       { version: 2, name: 'create-transactions', appliedAt: NOW.toISOString() },
       { version: 3, name: 'create-events', appliedAt: NOW.toISOString() },
+      { version: 4, name: 'create-users', appliedAt: NOW.toISOString() },
+      { version: 5, name: 'create-sessions', appliedAt: NOW.toISOString() },
+      { version: 6, name: 'add-user-ownership', appliedAt: NOW.toISOString() },
     ]);
     expect(tableNames(db)).toEqual(
-      expect.arrayContaining(['events', 'projects', 'schema_migrations', 'transactions']),
+      expect.arrayContaining([
+        'events',
+        'projects',
+        'schema_migrations',
+        'sessions',
+        'transactions',
+        'users',
+      ]),
     );
   });
 
@@ -46,13 +77,13 @@ describe('runMigrations', () => {
     runMigrations(db, migrations, now);
 
     expect(runMigrations(db, migrations, now)).toEqual([]);
-    expect(appliedMigrations(db)).toHaveLength(3);
+    expect(appliedMigrations(db)).toHaveLength(migrations.length);
   });
 
   it('applies only the migrations added since the last run', () => {
     runMigrations(db, migrations.slice(0, 1), now);
 
-    expect(runMigrations(db, migrations, now)).toEqual([2, 3]);
+    expect(runMigrations(db, migrations, now)).toEqual([2, 3, 4, 5, 6]);
   });
 
   it('skips a migration that another process applied after the pending list was read', () => {
@@ -126,9 +157,10 @@ describe('openDatabase', () => {
 
   it('enforces the CHECK constraints that mirror the schema', () => {
     const db = openDatabase(':memory:');
+    insertUser(db, 'u1');
     const insert = db.prepare(
-      `INSERT INTO transactions (id, account, type, amount_cents, date, description, created_at, updated_at)
-       VALUES ('t1', ?, ?, ?, '2026-01-01', 'x', 'now', 'now')`,
+      `INSERT INTO transactions (id, user_id, account, type, amount_cents, date, description, created_at, updated_at)
+       VALUES ('t1', 'u1', ?, ?, ?, '2026-01-01', 'x', 'now', 'now')`,
     );
 
     expect(() => insert.run('checking', 'income', 100)).toThrow(/CHECK/);
@@ -140,15 +172,55 @@ describe('openDatabase', () => {
 
   it('rejects a transaction tagged with an unknown project', () => {
     const db = openDatabase();
+    insertUser(db, 'u1');
 
-    expect(() =>
-      db
-        .prepare(
-          `INSERT INTO transactions (id, account, type, amount_cents, date, description, project_id, created_at, updated_at)
-           VALUES ('t1', 'main', 'income', 1, '2026-01-01', 'x', 'nope', 'now', 'now')`,
-        )
-        .run(),
-    ).toThrow(/FOREIGN KEY/);
+    expect(() => insertTransaction(db, 't1', 'u1', 'nope')).toThrow(/FOREIGN KEY/);
+    db.close();
+  });
+
+  it("rejects a transaction tagged with another user's project", () => {
+    const db = openDatabase();
+    insertUser(db, 'a');
+    insertUser(db, 'b');
+    insertProject(db, 'p-of-a', 'a');
+
+    expect(() => insertTransaction(db, 't1', 'b', 'p-of-a')).toThrow(/FOREIGN KEY/);
+    expect(() => insertTransaction(db, 't1', 'a', 'p-of-a')).not.toThrow();
+    db.close();
+  });
+
+  it('keeps project names unique per user, not across users', () => {
+    const db = openDatabase();
+    insertUser(db, 'a');
+    insertUser(db, 'b');
+    insertProject(db, 'p1', 'a', 'holiday');
+
+    expect(() => insertProject(db, 'p2', 'b', 'holiday')).not.toThrow();
+    expect(() => insertProject(db, 'p3', 'a', 'holiday')).toThrow(/UNIQUE/);
+    db.close();
+  });
+
+  it('stores emails only normalised and only once', () => {
+    const db = openDatabase();
+    insertUser(db, 'a', 'a@example.com');
+
+    expect(() => insertUser(db, 'b', 'a@example.com')).toThrow(/UNIQUE/);
+    expect(() => insertUser(db, 'c', 'A@example.com')).toThrow(/CHECK/);
+    expect(() => insertUser(db, 'd', ' d@example.com')).toThrow(/CHECK/);
+    db.close();
+  });
+
+  it('deletes the sessions of a deleted user', () => {
+    const db = openDatabase();
+    insertUser(db, 'a');
+    db.prepare(
+      `INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at)
+       VALUES (?, 'a', 'now', 'now', 'later')`,
+    ).run('f'.repeat(64));
+
+    db.prepare("DELETE FROM users WHERE id = 'a'").run();
+
+    expect(db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 0 });
     db.close();
   });
 });
