@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getProject, listProjects, listTransactions } from '../api/endpoints';
 import { ApiRequestError } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { useDocumentTitle } from '../hooks/useRouteAccessibility';
 import { formatChf } from '../lib/money';
 import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
@@ -20,6 +21,7 @@ export function ProjectDetailPage({ id }: { id: string }) {
   const [offset, setOffset] = useState(0);
   const [dialog, setDialog] = useState<TransactionDialog>(null);
   const project = useApi((signal) => getProject(id, signal), id);
+  useDocumentTitle(project.data?.name);
   const projects = useApi((signal) => listProjects(signal), 'projects');
   const transactions = useApi(
     (signal) => listTransactions({ projectId: id, limit: PAGE_SIZE, offset }, signal),

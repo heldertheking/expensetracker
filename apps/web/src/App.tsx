@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -18,7 +18,8 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import HistoryIcon from '@mui/icons-material/History';
 import MenuIcon from '@mui/icons-material/Menu';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import { useRoute } from './router';
+import { useFocusOnNavigation } from './hooks/useRouteAccessibility';
+import { usePathname, useRoute } from './router';
 import type { Route } from './router';
 import { AppThemeProvider } from './theme-context';
 import { DashboardPage } from './pages/DashboardPage';
@@ -165,6 +166,8 @@ function Navigation({ route }: { route: Route }) {
 
 export function App() {
   const route = useRoute();
+  const mainRef = useRef<HTMLElement>(null);
+  useFocusOnNavigation(usePathname(), mainRef);
 
   useEffect(() => {
     document.title = `${TITLES[route.name]} · Expense Tracker`;
@@ -189,6 +192,7 @@ export function App() {
       <Navigation route={route} />
       <Container
         component="main"
+        ref={mainRef}
         id="main"
         tabIndex={-1}
         maxWidth="lg"
