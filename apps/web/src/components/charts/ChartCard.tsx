@@ -88,6 +88,8 @@ export interface LegendItem {
   label: string;
   color: string;
   shape: 'line' | 'rect';
+  /** SVG dash pattern of a line series (e.g. '8 4'), mirrored in the key; 'none' or omitted is solid. */
+  dash?: string;
 }
 
 /** Legend keys mirror the marks: a short line for lines, a square for bars. */
@@ -113,7 +115,13 @@ export function ChartLegend({ items }: { items: LegendItem[] }) {
             aria-hidden="true"
             sx={{
               bgcolor: item.color,
-              width: item.shape === 'line' ? 14 : 10,
+              ...(item.shape === 'line' &&
+                item.dash &&
+                item.dash !== 'none' && {
+                  bgcolor: 'transparent',
+                  backgroundImage: `repeating-linear-gradient(90deg, ${item.color} 0 ${item.dash.split(' ')[0]}px, transparent ${item.dash.split(' ')[0]}px ${Number(item.dash.split(' ')[0]) + Number(item.dash.split(' ')[1])}px)`,
+                }),
+              width: item.shape === 'line' ? 24 : 10,
               height: item.shape === 'line' ? 2 : 10,
               borderRadius: item.shape === 'line' ? 1 : 0.5,
             }}

@@ -44,7 +44,7 @@ export function MonthlyFlowChart({
           items={[
             { label: 'Income', color: income, shape: 'rect' },
             { label: 'Expenses', color: expense, shape: 'rect' },
-            { label: 'Net', color: net, shape: 'line' },
+            { label: 'Net', color: net, shape: 'line', dash: chart.seriesDash?.[2] },
           ]}
         />
       }
@@ -98,11 +98,22 @@ export function MonthlyFlowChart({
             type: 'line',
             label: 'Net',
             color: net,
+            showMark: chart.showMarks ?? false,
             data: monthly.map((m) => m.netCents),
             valueFormatter: (v: number | null) => (v === null ? '' : formatSignedChf(v)),
           },
         ]}
-        sx={axisSx}
+        sx={(theme) => ({
+          ...axisSx(theme),
+          '& .MuiLineElement-root': {
+            strokeDasharray: chart.seriesDash?.[2] ?? 'none',
+            ...(chart.showMarks && { strokeWidth: 3 }),
+          },
+          // Outlined bars keep their edges visible without relying on fill color alone.
+          ...(chart.showMarks && {
+            '& .MuiBarElement-root': { stroke: theme.palette.text.primary, strokeWidth: 1 },
+          }),
+        })}
       >
         <ChartsGrid horizontal />
         <BarPlot borderRadius={4} />

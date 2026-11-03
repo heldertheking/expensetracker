@@ -29,7 +29,17 @@ export function BalanceChart({
   dimmed?: boolean;
 }) {
   const { chart } = useTheme();
-  const lines = LINES.map((line, i) => ({ ...line, color: chart.series[i]! }));
+  const lines = LINES.map((line, i) => ({
+    ...line,
+    color: chart.series[i]!,
+    dash: chart.seriesDash?.[i],
+  }));
+  const dashStyles: Record<string, object> = {};
+  for (const line of lines) {
+    dashStyles[`& .${lineClasses.line}.MuiLineElement-series-${line.key}`] = {
+      strokeDasharray: line.dash ?? 'none',
+    };
+  }
   return (
     <ChartCard
       title="Balance over time"
@@ -68,14 +78,15 @@ export function BalanceChart({
           color: line.color,
           data: balances.map((b) => b[line.key]),
           valueFormatter: (v: number | null) => (v === null ? '' : formatChf(v)),
-          showMark: false,
+          showMark: chart.showMarks ?? false,
           curve: 'monotoneX',
           area: i === 0, // a light wash under the total only
         }))}
         sx={(theme) => ({
           ...axisSx(theme),
           [`& .${lineClasses.area}`]: { fillOpacity: 0.1 },
-          [`& .${lineClasses.line}`]: { strokeWidth: 2 },
+          [`& .${lineClasses.line}`]: { strokeWidth: chart.showMarks ? 3 : 2 },
+          ...dashStyles,
         })}
       />
     </ChartCard>

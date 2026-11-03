@@ -84,7 +84,7 @@ export const darkSpec: ThemeSpec = {
   status: { good: '#4fd18b', warning: '#f6bd41', critical: '#ff7070' },
   divider: 'rgba(243, 244, 246, 0.14)',
   chart: {
-    series: ['#66a8ff', '#ff8b57', '#3dd69d'],
+    series: ['#3987e5', '#d95926', '#199e70'],
     neutral: '#949ca8',
     grid: '#2b3038',
     axis: '#586170',
@@ -106,7 +106,7 @@ export const highContrastSpec: ThemeSpec = {
   divider: '#ffffff',
   focusRing: '#ffe64d',
   chart: {
-    series: ['#5ce1ff', '#ffb340', '#5cff8d'],
+    series: ['#3987e5', '#d95926', '#199e70'],
     seriesDash: ['none', '8 4', '2 4'],
     showMarks: true,
     neutral: '#d9d9d9',
