@@ -50,7 +50,7 @@ _(TBD, refine as features are planned)_
 
 A test run passes when all tests succeed and the typecheck is clean. The pipeline on `main` must be green.
 
-Coverage target: _(TBD, e.g. >= 80% lines for services)_.
+Coverage target: the API (`apps/api`) enforces at least 90% lines, statements and functions and 85% branches in `vitest.config.ts`, so `npm test -w apps/api` fails below it. Only the process entry points `src/index.ts` and `src/seed.ts` are excluded; everything they wire together is tested.
 
 **Fehlerklassifizierung:**
 
