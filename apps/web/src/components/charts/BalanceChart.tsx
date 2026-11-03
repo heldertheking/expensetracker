@@ -68,7 +68,7 @@ export function BalanceChart({
           color: line.color,
           data: balances.map((b) => b[line.key]),
           valueFormatter: (v: number | null) => (v === null ? '' : formatChf(v)),
-          showMark: false,
+          showMark: Boolean(chart.showMarks),
           curve: 'monotoneX',
           area: i === 0, // a light wash under the total only
         }))}
@@ -76,6 +76,17 @@ export function BalanceChart({
           ...axisSx(theme),
           [`& .${lineClasses.area}`]: { fillOpacity: 0.1 },
           [`& .${lineClasses.line}`]: { strokeWidth: 2 },
+          ...(theme.chart.seriesDash && {
+            [`& .MuiLineElement-series-totalCents`]: {
+              strokeDasharray: theme.chart.seriesDash[0],
+            },
+            [`& .MuiLineElement-series-mainCents`]: {
+              strokeDasharray: theme.chart.seriesDash[1],
+            },
+            [`& .MuiLineElement-series-savingsCents`]: {
+              strokeDasharray: theme.chart.seriesDash[2],
+            },
+          }),
         })}
       />
     </ChartCard>
