@@ -34,5 +34,12 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   window.history.replaceState(null, '', '/');
+  try {
+    window.localStorage.removeItem('expensetracker.theme');
+  } catch {
+    // ignore mocked storage errors in tests
+  }
+  delete document.documentElement.dataset.theme;
+  document.documentElement.style.colorScheme = '';
 });
 afterAll(() => server.close());

@@ -18,3 +18,4 @@ Decisions that affect structure, tooling or conventions are recorded here in MAD
 | [0012](0012-business-event-pipeline.md)               | Writes go through a business event pipeline                                       | accepted |
 | [0013](0013-frontend-charts-and-structure.md)         | Web client: MUI, MUI X Charts, small router, fetch hooks                          | accepted |
 | [0014](0014-authentication-and-multi-user.md)         | Server-side cookie sessions, scrypt password hashing and SQL-level user ownership | accepted |
+| [0015](0015-themes-and-high-contrast.md)              | Selectable themes and a WCAG AAA high-contrast theme                              | accepted |
