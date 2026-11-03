@@ -51,6 +51,18 @@ describe('POST /api/projects', () => {
     });
   });
 
+  it.each([
+    ['Ärger', 'ärger'],
+    ['Übersee', 'ÜBERSEE'],
+  ])('treats %s and %s as the same name, beyond ASCII', async (first, second) => {
+    await createProject(api, { name: first });
+
+    const res = await api.post('/api/projects').send({ name: second });
+
+    expect(res.status).toBe(409);
+    expect(errorOf(res.body)).toMatchObject({ code: 'conflict' });
+  });
+
   it('rejects a duplicate name in any case with 409', async () => {
     await createProject(api, { name: 'Holiday' });
 
