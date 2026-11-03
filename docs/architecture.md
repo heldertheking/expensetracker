@@ -61,4 +61,4 @@ All responses are built with, and validated against, the schema package.
 | `GET /api/stats`               | `StatsQuery` / `StatsResponse`                      | data for the dashboard charts            |
 | `GET /api/events`              | `ListEventsQuery` / `EventListResponse`             | activity feed, newest first              |
 
-Errors use `ApiErrorSchema`: 400 `validation_error`, 404 `not_found`, 409 `conflict`, 422 `unprocessable`.
+Errors use `ApiErrorSchema`: 400 `validation_error`, 404 `not_found`, 409 `conflict`, 422 `unprocessable`, 500 `internal_error`.

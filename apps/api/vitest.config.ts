@@ -9,7 +9,15 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/index.ts'], // Exclude the port listener from test coverage
+      // Process entry points only: they read env vars and listen or exit. Everything they wire
+      // together (createApp, createCore, the seed generator and seeder) is covered by tests.
+      exclude: ['src/index.ts', 'src/seed.ts'],
+      thresholds: {
+        lines: 90,
+        branches: 85,
+        functions: 90,
+        statements: 90,
+      },
     },
   },
 });

@@ -6,8 +6,17 @@ const ValidationIssueSchema = z.object({
 });
 type ValidationIssue = z.infer<typeof ValidationIssueSchema>;
 
-/** `unprocessable` is a business rule failure, `validation_error` a malformed request. */
-const ApiErrorCode = z.enum(['validation_error', 'not_found', 'conflict', 'unprocessable']);
+/**
+ * `unprocessable` is a business rule failure, `validation_error` a malformed request,
+ * `internal_error` an unexpected server failure (500) whose details stay in the server log.
+ */
+const ApiErrorCode = z.enum([
+  'validation_error',
+  'not_found',
+  'conflict',
+  'unprocessable',
+  'internal_error',
+]);
 type ApiErrorCode = z.infer<typeof ApiErrorCode>;
 
 const ApiErrorSchema = z.object({
