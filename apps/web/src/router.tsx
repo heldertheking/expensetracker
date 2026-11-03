@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { AnchorHTMLAttributes, MouseEvent } from 'react';
+import type { AnchorHTMLAttributes, MouseEvent, Ref } from 'react';
 
 /**
  * A small router over the History API. The app has five routes and no nested layouts, so a
@@ -54,13 +54,20 @@ export function useRoute(): Route {
   return matchRoute(usePathname());
 }
 
-type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { to: string };
+type RouterLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string;
+  ref?: Ref<HTMLAnchorElement>;
+};
 
-/** An anchor that navigates in-app on a plain left click and behaves normally otherwise. */
-export function Link({ to, onClick, ...rest }: LinkProps) {
+/**
+ * An anchor that navigates in-app on a plain left click and behaves normally otherwise. The theme
+ * makes it the link component of MUI, so `<Link href>` and `<Button href>` use the router.
+ */
+export function RouterLink({ href, onClick, ref, ...rest }: RouterLinkProps) {
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(event);
     if (
+      !href.startsWith('/') ||
       event.defaultPrevented ||
       event.button !== 0 ||
       event.metaKey ||
@@ -71,7 +78,7 @@ export function Link({ to, onClick, ...rest }: LinkProps) {
       return;
     }
     event.preventDefault();
-    navigate(to);
+    navigate(href);
   };
-  return <a href={to} onClick={handleClick} {...rest} />;
+  return <a ref={ref} href={href} onClick={handleClick} {...rest} />;
 }

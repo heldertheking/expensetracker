@@ -11,11 +11,14 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
     "@expensetracker/schema": "*",
+    "@mui/icons-material": "9.5.0",
+    "@mui/material": "9.5.0",
+    "@mui/x-charts": "9.17.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-is": "19.3.1",
-    "recharts": "3.10.1"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
