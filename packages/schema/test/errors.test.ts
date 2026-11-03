@@ -27,6 +27,11 @@ describe('apiError', () => {
     expect(apiError('not_found', 'Project not found').error.issues).toEqual([]);
   });
 
+  it('accepts an internal error without details', () => {
+    const body = apiError('internal_error', 'internal server error');
+    expect(ApiErrorSchema.safeParse(body).success).toBe(true);
+  });
+
   it('rejects an unknown code', () => {
     const body = { error: { code: 'teapot', message: 'x', issues: [] } };
     expect(ApiErrorSchema.safeParse(body).success).toBe(false);

@@ -62,9 +62,7 @@ function errorHandler(log: (message: string, error: unknown) => void): ErrorRequ
       return;
     }
     log('unexpected error', error);
-    res
-      .status(500)
-      .json({ error: { code: 'internal_error', message: 'internal server error', issues: [] } });
+    res.status(500).json(apiError('internal_error', 'internal server error'));
   };
 }
 

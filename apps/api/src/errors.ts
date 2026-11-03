@@ -21,6 +21,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   not_found: 404,
   conflict: 409,
   unprocessable: 422,
+  internal_error: 500,
 };
 
 const invalid = (issues: ValidationIssue[], message = 'Request validation failed') =>

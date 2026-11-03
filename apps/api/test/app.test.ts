@@ -87,7 +87,10 @@ describe('errors', () => {
     const response = await api.get('/api/health');
 
     expect(response.status).toBe(500);
-    expect(response.body.error).toMatchObject({ message: 'internal server error' });
+    expect(ApiErrorSchema.parse(response.body).error).toMatchObject({
+      code: 'internal_error',
+      message: 'internal server error',
+    });
     expect(log).toHaveBeenCalledWith('unexpected error', new Error('clock broke'));
   });
 });
