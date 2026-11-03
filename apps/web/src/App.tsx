@@ -4,7 +4,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
-import CssBaseline from '@mui/material/CssBaseline';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
@@ -13,7 +12,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
-import { ThemeProvider } from '@mui/material/styles';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -22,7 +20,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import { useRoute } from './router';
 import type { Route } from './router';
-import { theme } from './theme';
+import { AppThemeProvider } from './theme-context';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -138,6 +137,7 @@ function Navigation({ route }: { route: Route }) {
         </Box>
         {/* Right-hand side of the bar, kept free for the user menu (login, logout). */}
         <Box sx={{ flexGrow: 1 }} />
+        <ThemeSwitcher />
       </Toolbar>
       <Drawer open={open} onClose={() => setOpen(false)}>
         <Box component="nav" aria-label="Main" sx={{ width: 260 }}>
@@ -171,8 +171,7 @@ export function App() {
   }, [route.name]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <AppThemeProvider>
       <Link
         href="#main"
         sx={{
@@ -197,6 +196,6 @@ export function App() {
       >
         <Page route={route} />
       </Container>
-    </ThemeProvider>
+    </AppThemeProvider>
   );
 }
