@@ -2,11 +2,10 @@
 
 - Status: accepted
 - Date: 2026-11-03
-- Supersedes the "views" part of [0009](0009-domain-model-and-validation-in-schema.md)
 
 ## Context
 
-[ADR 0009](0009-domain-model-and-validation-in-schema.md) modelled `main` and `savings` as _views_: `main` showed every transaction, `savings` only the savings ones, and a new transaction defaulted to `main`. That mixes two ideas (where the money is, and what the user is looking at) and makes the main balance include savings. The user's mental model is two real accounts, a normal one and a savings one, with projects cutting across both.
+The first draft of the domain model modelled `main` and `savings` as _views_: `main` showed every transaction, `savings` only the savings ones, and a new transaction defaulted to `main`. That mixes two ideas (where the money is, and what the user is looking at) and makes the main balance include savings. The user's mental model is two real accounts, a normal one and a savings one, with projects cutting across both.
 
 ## Decision
 

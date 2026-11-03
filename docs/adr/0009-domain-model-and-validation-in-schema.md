@@ -1,11 +1,11 @@
 # 0009. Domain model and validation rules live in the schema package
 
-- Status: accepted, views superseded by [0010](0010-accounts-and-project-tags.md)
+- Status: accepted
 - Date: 2026-10-21
 
 ## Context
 
-The app tracks transactions on two views (`main` shows every transaction, `savings` only the savings ones) and groups them into projects. A project can carry an initial budget that must never change and is a guide, not a hard ceiling. Validation rules like "this field cannot be updated" or "if this changes, that must be resent" are easy to scatter across routes, services and the client. [ADR 0003](0003-shared-zod-schema-package.md) already makes `packages/schema` the API contract, so the rules belong there too.
+The app books every transaction on one of two accounts, `main` or `savings`, and lets it be tagged with a project ([ADR 0010](0010-accounts-and-project-tags.md)). A project can carry an initial budget that must never change and is a guide, not a hard ceiling. Validation rules like "this field cannot be updated" or "if this changes, that must be resent" are easy to scatter across routes, services and the client. [ADR 0003](0003-shared-zod-schema-package.md) already makes `packages/schema` the API contract, so the rules belong there too.
 
 ## Decision
 
@@ -21,7 +21,7 @@ Every validation rule that can be expressed without a database lives in `package
 
 - Money is integer cents (`amountCents`, `budgetCents`), never floats.
 - Dates are calendar dates (`YYYY-MM-DD`); timestamps use `z.coerce.date()`.
-- Requests are strict (`z.strictObject`): unknown keys fail. Server-owned fields (`id`, totals, timestamps) and immutable fields (`budgetCents` after creation, `account` of a transaction) are declared with `readonlyFields` so a client gets a message saying why, not a generic error.
+- Requests are strict (`z.strictObject`): unknown keys fail. Server-owned fields (`id`, totals, timestamps) are declared with `readonlyFields`; immutable fields (`budgetCents` after creation, `account` of a transaction) are declared as `z.never()` with their own message, since the reason differs per field. Either way a client gets a message saying why, not a generic error.
 - Input is strict, output is tolerant: a request may not carry a future date, but a stored transaction with one is still a valid response.
 - Rules that need the stored record but no database are pure functions taking `existing` and `patch` (`validateTransactionUpdate`, `validateProjectUpdate`): an update that changes nothing is rejected, and changing `type` requires `amountCents` to be sent again because it inverts the balance impact.
 - Response schemas carry structural invariants (a remainder exists exactly when there is a budget; `overBudget` matches a negative remainder; a page never exceeds its limit).
