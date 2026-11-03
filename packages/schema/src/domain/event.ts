@@ -9,6 +9,8 @@ import { TransactionSchema } from './transaction.js';
  * (`CreateTransactionEvent`). The API runs each one through the same pipeline and appends it to
  * an append-only event log, so the log is the history of everything that happened.
  * Payloads hold snapshots of the stored records; derived totals are never part of an event.
+ * Every event belongs to the user whose action caused it (`userId`), and only that user sees it.
+ * Credentials (password hashes, session tokens) are never part of an event.
  */
 const BUSINESS_EVENT_TYPES = [
   'CreateTransactionEvent',
@@ -24,6 +26,7 @@ type BusinessEventType = z.infer<typeof BusinessEventType>;
 const envelope = {
   id: Id,
   sequence: z.number().int().positive(), // position in the event log, increasing
+  userId: Id, // the user who caused the event and owns the records in it
   occurredAt: Timestamp,
 };
 

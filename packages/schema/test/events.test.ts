@@ -29,9 +29,12 @@ const project = {
   updatedAt: now,
 };
 
+const userId = '9b2f4c1a-8d3e-4f5a-b6c7-d8e9f0a1b2c3';
+
 const event = (sequence: number, type: string, payload: object) => ({
   id: `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`,
   sequence,
+  userId,
   occurredAt: now,
   type,
   payload,
@@ -55,6 +58,15 @@ describe('BusinessEventSchema', () => {
     const parsed = BusinessEventSchema.parse(event(1, type, payload));
     expect(parsed.type).toBe(type);
     expect(parsed.occurredAt).toBeInstanceOf(Date);
+  });
+
+  it('requires the user the event belongs to', () => {
+    const { userId: _omit, ...withoutUser } = event(1, 'CreateProjectEvent', { project });
+    void _omit;
+    expect(BusinessEventSchema.safeParse(withoutUser).success).toBe(false);
+    expect(BusinessEventSchema.safeParse({ ...withoutUser, userId: 'not-a-uuid' }).success).toBe(
+      false,
+    );
   });
 
   it('rejects a payload that belongs to another event type', () => {

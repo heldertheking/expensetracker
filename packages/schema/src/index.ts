@@ -7,8 +7,10 @@ export * from './domain/project.js';
 export * from './domain/text.js';
 export * from './domain/timestamp.js';
 export * from './domain/transaction.js';
+export * from './domain/user.js';
 
 export * from './api/accounts.js';
+export * from './api/auth.js';
 export * from './api/errors.js';
 export * from './api/events.js';
 export * from './api/projects.js';
