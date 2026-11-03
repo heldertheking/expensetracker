@@ -689,6 +689,8 @@ main:focus {
   cursor: pointer;
   text-decoration: none;
   min-height: 36px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .button:hover:not(:disabled) {
@@ -1080,5 +1082,13 @@ input[type='radio'] {
   .pagination {
     flex-wrap: wrap;
     justify-content: center;
+  }
+
+  .activity-item {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .activity-meta {
+    grid-column: 2;
   }
 }
