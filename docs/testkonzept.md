@@ -4,12 +4,13 @@ Based on the M450 template. Entries marked _(TBD)_ are filled in as the project 
 
 ## 1. Introduction
 
-expensetracker is a web application to track finances (income and expenses) and group them by project, as well as in a general "main finances" account. It consists of an Express/TypeScript REST backend with SQLite persistence and a React/TypeScript frontend.
+expensetracker is a web application to track finances (income and expenses) and group them by project, as well as in a general "main finances" account. Every transaction is booked on the main or the savings account and can be tagged with a project, which counts it against the project's budget. It consists of an Express/TypeScript REST backend with SQLite persistence (versioned migrations) and a business event pipeline for all writes, a React/TypeScript frontend with a chart dashboard, and a shared zod schema package.
 
 ## 2. Test Items
 
-- **Backend** (`backend/`): routes (HTTP layer), services (business logic, e.g. budget/balance calculation), repositories (SQLite access).
-- **Frontend** (`frontend/`): components, pages, API client, hooks.
+- **Schema** (`packages/schema`): domain objects, API contract and validation rules (contract tests).
+- **Backend** (`apps/api`): routes (HTTP layer), event bus and handlers (business events), services (balance, budget and statistics calculation), repositories (SQLite access), migration runner.
+- **Frontend** (`apps/web`): dashboard and charts, pages, components, API client, hooks.
 
 Architecture sketch: see [architecture.md](architecture.md).
 
@@ -17,13 +18,17 @@ Architecture sketch: see [architecture.md](architecture.md).
 
 _(TBD, refine as features are planned)_
 
-| Area     | Feature                                                  | Level             |
-| -------- | -------------------------------------------------------- | ----------------- |
-| Projects | Create, update, delete project; set budget               | Unit, Integration |
-| Finance  | Add, edit, delete income/expense, per project or general | Unit, Integration |
-| Finance  | Balance and budget calculation (**TDD target**)          | Unit              |
-| API      | Input validation (zod), error responses                  | Integration       |
-| Frontend | Transaction list, project view, transaction form         | Component         |
+| Area     | Feature                                                                    | Level             |
+| -------- | -------------------------------------------------------------------------- | ----------------- |
+| Schema   | Contract rules (required account, budget equation, stats invariants)       | Contract (unit)   |
+| Projects | Create, update, delete project; initial budget fixed                       | Unit, Integration |
+| Finance  | Add, edit, delete income/expense on main or savings, tag with a project    | Unit, Integration |
+| Finance  | Balance per account and overall, project budget remainder (**TDD target**) | Unit              |
+| Events   | Pipeline order, one transaction per event, event log, subscribers          | Unit, Integration |
+| Database | Migrations apply in order, idempotent, roll back on failure                | Integration       |
+| Stats    | Monthly flows, month-end balances, spending per project                    | Unit, Integration |
+| API      | Input validation (zod), error responses                                    | Integration       |
+| Frontend | Dashboard charts, transaction list and form, project view, activity feed   | Component         |
 
 ## 4. Features not to be tested
 
@@ -55,7 +60,7 @@ Coverage target: _(TBD, e.g. >= 80% lines for services)_.
 
 ## 7. Test Deliverables
 
-- Test code in `backend/test` and `frontend/test`
+- Test code in `packages/schema/test`, `apps/api/test` and `apps/web/test`
 - JUnit XML test reports and coverage reports (HTML, lcov), uploaded as CI artifacts
 - This test concept
 - TDD and code review reflection ([reflexion.md](reflexion.md))
@@ -69,7 +74,7 @@ Coverage target: _(TBD, e.g. >= 80% lines for services)_.
 
 ## 9. Environmental Needs
 
-- Node.js 20, npm workspaces
+- Node.js 24, npm workspaces
 - SQLite (in-memory for tests, via better-sqlite3)
 - GitHub Actions (`ubuntu-latest`) for the pipeline
 

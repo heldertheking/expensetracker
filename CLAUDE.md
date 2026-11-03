@@ -6,11 +6,11 @@ Expense tracker that groups income and expenses by project, plus a general "main
 
 npm workspaces monorepo (`apps/*`, `packages/*`), ESM everywhere.
 
-| Path              | What                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------ |
-| `apps/api`        | Express 5 + better-sqlite3 + zod. Layers: `routes` -> `services` -> `repositories` -> `db` |
-| `apps/web`        | React 19 + Vite. Dev server on :5173, proxies `/api` to the API on :3000                   |
-| `packages/schema` | Shared zod schemas and inferred types (`@expensetracker/schema`)                           |
+| Path              | What                                                                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`        | Express 5 + better-sqlite3 + zod. Writes: `routes` -> `events` -> `repositories` -> `db`; reads: `routes` -> `services` -> `repositories` |
+| `apps/web`        | React 19 + Vite. Dev server on :5173, proxies `/api` to the API on :3000                                                                  |
+| `packages/schema` | Shared zod schemas and inferred types (`@expensetracker/schema`)                                                                          |
 
 `@expensetracker/schema` is consumed through its **built `dist`**, not its source. The schema is the single source of truth for API contracts: build API responses with it and validate responses with it in the web client. Wire timestamps use `z.coerce.date()` so one schema works on both sides of JSON. See [ADR 0003](docs/adr/0003-shared-zod-schema-package.md).
 
@@ -39,7 +39,10 @@ Node version is in `.nvmrc` (24).
 - Prettier: single quotes, semicolons, trailing commas, `printWidth` 100, LF line endings (`.editorconfig`, `.gitattributes` enforce LF).
 - API and schema use `module: NodeNext`: relative imports need the `.js` extension (`import { app } from './app.js'`), even though the file is `.ts`.
 - Tests live in each workspace's `test/` directory, Vitest, `*.test.ts(x)`. API integration tests use supertest; web tests use Testing Library (setup in `apps/web/test/setup.ts`, jest-dom via `@testing-library/jest-dom/vitest`).
-- Keep the layers separate: routes handle HTTP and validation, services hold business rules, repositories hold SQL.
+- Keep the layers separate: routes handle HTTP and validation, event handlers and services hold business rules, repositories hold SQL.
+- Every write is a business event (`CreateTransactionEvent`, ...) dispatched through the event bus, never a direct repository call from a route. See [ADR 0012](docs/adr/0012-business-event-pipeline.md).
+- Tables are created and changed only through a new migration in `apps/api/src/db/migrations`; never edit an applied migration. See [ADR 0011](docs/adr/0011-database-migrations.md).
+- Every transaction has an account (`main` or `savings`, required); a project is an optional tag that counts it against the project budget. See [ADR 0010](docs/adr/0010-accounts-and-project-tags.md).
 - Small, frequent commits.
 
 ## No AI attribution (hard rule)

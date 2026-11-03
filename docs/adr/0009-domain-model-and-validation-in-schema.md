@@ -1,6 +1,6 @@
 # 0009. Domain model and validation rules live in the schema package
 
-- Status: accepted
+- Status: accepted, views superseded by [0010](0010-accounts-and-project-tags.md)
 - Date: 2026-10-21
 
 ## Context
