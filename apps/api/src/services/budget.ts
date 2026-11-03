@@ -11,9 +11,17 @@ interface ProjectSums {
  * refills it, `remainingCents = budgetCents - expenseCents + incomeCents`.
  */
 function withProjectTotals(project: ProjectRecord, sums: ProjectSums): Project {
-  void project;
-  void sums;
-  throw new Error('not implemented');
+  const remainingCents =
+    project.budgetCents === null
+      ? null
+      : project.budgetCents - sums.expenseCents + sums.incomeCents;
+  return {
+    ...project,
+    incomeCents: sums.incomeCents,
+    expenseCents: sums.expenseCents,
+    remainingCents,
+    overBudget: remainingCents !== null && remainingCents < 0,
+  };
 }
 
 export { withProjectTotals };
