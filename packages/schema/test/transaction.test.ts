@@ -60,6 +60,11 @@ describe('CreateTransactionRequest', () => {
     expect(parsed).toMatchObject({ account: 'savings', type: 'income', projectId: PROJECT_ID });
   });
 
+  it('reports a malformed date once, without range errors', () => {
+    const result = CreateTransactionRequest.safeParse({ ...valid, date: 'garbage' });
+    expect(result.error?.issues).toHaveLength(1);
+  });
+
   it('accepts today and, for time zones ahead of UTC, tomorrow', () => {
     expect(CreateTransactionRequest.safeParse({ ...valid, date: '2026-06-15' }).success).toBe(true);
     expect(CreateTransactionRequest.safeParse({ ...valid, date: '2026-06-16' }).success).toBe(true);
@@ -207,6 +212,16 @@ describe('TransactionSchema and TransactionListResponse', () => {
 
   it('rejects a page that runs past the total', () => {
     const page = { items: [transaction()], total: 5, limit: 10, offset: 5 };
+    expect(TransactionListResponse.safeParse(page).success).toBe(false);
+  });
+
+  it('accepts an empty page past the end, which a valid query can request', () => {
+    const page = { items: [], total: 3, limit: 50, offset: 40 };
+    expect(TransactionListResponse.safeParse(page).success).toBe(true);
+  });
+
+  it('rejects a short page when more items exist', () => {
+    const page = { items: [transaction()], total: 5, limit: 2, offset: 0 };
     expect(TransactionListResponse.safeParse(page).success).toBe(false);
   });
 });

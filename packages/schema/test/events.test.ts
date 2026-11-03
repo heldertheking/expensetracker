@@ -69,6 +69,36 @@ describe('BusinessEventSchema', () => {
     );
   });
 
+  it.each([
+    ['id', { id: '00000000-0000-4000-8000-000000000099' }],
+    ['account', { account: 'main' }],
+    ['createdAt', { createdAt: '2026-06-16T00:00:00.000Z' }],
+  ])('rejects an UpdateTransactionEvent that changes %s', (_field, change) => {
+    const payload = { before: transaction, after: { ...transaction, ...change } };
+    expect(BusinessEventSchema.safeParse(event(1, 'UpdateTransactionEvent', payload)).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ['id', { id: '00000000-0000-4000-8000-000000000099' }],
+    ['budgetCents', { budgetCents: 1 }],
+    ['createdAt', { createdAt: '2026-06-16T00:00:00.000Z' }],
+  ])('rejects an UpdateProjectEvent that changes %s', (_field, change) => {
+    const payload = { before: project, after: { ...project, ...change } };
+    expect(BusinessEventSchema.safeParse(event(1, 'UpdateProjectEvent', payload)).success).toBe(
+      false,
+    );
+  });
+
+  it('accepts an update that changes updatedAt', () => {
+    const after = { ...project, name: 'Trip', updatedAt: '2026-06-16T00:00:00.000Z' };
+    const payload = { before: project, after };
+    expect(BusinessEventSchema.safeParse(event(1, 'UpdateProjectEvent', payload)).success).toBe(
+      true,
+    );
+  });
+
   it('rejects a sequence below 1', () => {
     expect(
       BusinessEventSchema.safeParse(event(0, 'CreateTransactionEvent', { transaction })).success,
@@ -103,6 +133,16 @@ describe('EventListResponse', () => {
 
   it('rejects a page that runs past the total', () => {
     const page = { items: [created], total: 1, limit: 20, offset: 1 };
+    expect(EventListResponse.safeParse(page).success).toBe(false);
+  });
+
+  it('accepts an empty page past the end', () => {
+    const page = { items: [], total: 3, limit: 20, offset: 40 };
+    expect(EventListResponse.safeParse(page).success).toBe(true);
+  });
+
+  it('rejects a short page when more items exist', () => {
+    const page = { items: [created], total: 5, limit: 2, offset: 0 };
     expect(EventListResponse.safeParse(page).success).toBe(false);
   });
 });

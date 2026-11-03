@@ -10,6 +10,7 @@ import {
 } from '../domain/transaction.js';
 import type { Transaction } from '../domain/transaction.js';
 import type { ValidationIssue } from './errors.js';
+import { page } from './page.js';
 import { readonlyFields, SERVER_MANAGED } from './readonly.js';
 import { changedFields, NOTHING_CHANGED } from './update.js';
 
@@ -19,10 +20,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Today plus one day, so a client ahead of UTC can still record "today". ISO dates sort as text. */
 const latestAllowedDate = () => new Date(Date.now() + DAY_MS).toISOString().slice(0, 10);
 
-/** Input is strict: a transaction records something that already happened. */
-const TransactionDateInput = IsoDate.refine((date) => date >= EARLIEST_DATE, {
-  error: `date must not be before ${EARLIEST_DATE}`,
-}).refine((date) => date <= latestAllowedDate(), { error: 'date must not be in the future' });
+/**
+ * Input is strict: a transaction records something that already happened. The range checks run
+ * only on a valid date (pipe), so a malformed date reports one error, not three.
+ */
+const TransactionDateInput = IsoDate.pipe(
+  z
+    .string()
+    .refine((date) => date >= EARLIEST_DATE, { error: `date must not be before ${EARLIEST_DATE}` })
+    .refine((date) => date <= latestAllowedDate(), { error: 'date must not be in the future' }),
+);
 
 const serverManaged = readonlyFields(['id', 'createdAt', 'updatedAt'], SERVER_MANAGED);
 
@@ -108,21 +115,7 @@ type ListTransactionsQuery = z.infer<typeof ListTransactionsQuery>;
 const TransactionResponse = TransactionSchema;
 type TransactionResponse = z.infer<typeof TransactionResponse>;
 
-const TransactionListResponse = z
-  .object({
-    items: z.array(TransactionSchema),
-    total: z.number().int().nonnegative(),
-    limit: z.number().int().min(1),
-    offset: z.number().int().nonnegative(),
-  })
-  .refine((page) => page.items.length <= page.limit, {
-    error: 'items must not exceed limit',
-    path: ['items'],
-  })
-  .refine((page) => page.offset + page.items.length <= page.total, {
-    error: 'offset plus items must not exceed total',
-    path: ['total'],
-  });
+const TransactionListResponse = page(TransactionSchema);
 type TransactionListResponse = z.infer<typeof TransactionListResponse>;
 
 export { CreateTransactionRequest, ListTransactionsQuery, TransactionListResponse };
