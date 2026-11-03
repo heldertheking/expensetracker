@@ -11,3 +11,6 @@ badges/
 eslint-report.json
 prettier.txt
 .claude/
+*.db-wal
+*.db-shm
+apps/api/data/

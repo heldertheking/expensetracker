@@ -24,6 +24,7 @@ Run from the repo root.
 npm install                    # also points git hooks at .githooks (prepare script)
 npm run build:schema           # REQUIRED before api/web typecheck, build or test
 npm run dev                    # schema watch + api + web
+npm run seed -w apps/api       # demo data into an empty DB (DB_PATH, default apps/api/data/expensetracker.db)
 npm run typecheck -w apps/api  # likewise apps/web, packages/schema
 npm test -w apps/api           # vitest run --coverage; likewise apps/web (packages/schema: vitest run)
 npm test                       # all workspaces
