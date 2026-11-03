@@ -21,7 +21,7 @@ describe('Projects page', () => {
     await screen.findByRole('link', { name: 'Holiday' });
 
     const holiday = within(card('Holiday'));
-    expect(holiday.getByRole('meter', { name: 'Budget used for Holiday' })).toHaveAttribute(
+    expect(holiday.getByRole('progressbar', { name: 'Budget used for Holiday' })).toHaveAttribute(
       'aria-valuenow',
       '25',
     );
@@ -34,7 +34,7 @@ describe('Projects page', () => {
     expect(renovation.getByText('CHF 50.00')).toBeInTheDocument(); // refilled by tagged income
 
     const course = within(card('Language course'));
-    expect(course.queryByRole('meter')).not.toBeInTheDocument();
+    expect(course.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(course.getByText('No budget · CHF 300.00 spent')).toBeInTheDocument();
   });
 
@@ -233,7 +233,7 @@ describe('Project detail', () => {
     await user.click(screen.getByRole('button', { name: 'New tagged transaction' }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByLabelText('Project (optional)')).toHaveValue(p.id);
-    await user.click(within(dialog).getByRole('radio', { name: 'Savings' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Savings' }));
     await user.type(within(dialog).getByLabelText('Amount (CHF)'), '10');
     await user.type(within(dialog).getByLabelText('Description'), 'Screws');
     await user.click(within(dialog).getByRole('button', { name: 'Add transaction' }));

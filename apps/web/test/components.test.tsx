@@ -9,7 +9,7 @@ import { flowSummary } from '../src/components/charts/MonthlyFlowChart';
 import { uuid } from './fixtures';
 
 describe('Modal', () => {
-  it('focuses the first field, keeps Tab inside and closes on the backdrop', async () => {
+  it('is a named dialog that keeps focus inside and closes with Escape or the close button', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
@@ -21,22 +21,16 @@ describe('Modal', () => {
         </Modal>
       </>,
     );
-    expect(screen.getByLabelText('First')).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Last' })).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(screen.getByRole('button', { name: 'Last' })).toHaveFocus();
-    await user.tab();
-    await user.tab({ shift: true });
-    expect(screen.getByRole('button', { name: 'Last' })).toHaveFocus();
-    expect(screen.getByRole('button', { name: 'Outside' })).not.toHaveFocus();
-
-    await user.click(screen.getByRole('dialog', { name: 'Edit' }));
-    expect(onClose).not.toHaveBeenCalled();
-    await user.click(document.querySelector('.modal-backdrop')!);
+    const dialog = screen.getByRole('dialog', { name: 'Edit' });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    for (let i = 0; i < 4; i++) {
+      await user.tab();
+      expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    }
+    await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 });
 

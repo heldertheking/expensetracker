@@ -57,7 +57,7 @@ describe('Transactions page: list', () => {
     await screen.findByRole('table');
     expect(lastParams(list.urls)).toEqual({ limit: '20', offset: '0' });
 
-    await user.click(screen.getByRole('radio', { name: 'Savings' }));
+    await user.click(screen.getByRole('button', { name: 'Savings' }));
     await waitFor(() => expect(lastParams(list.urls).account).toBe('savings'));
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'Holiday');
@@ -104,7 +104,7 @@ describe('Transactions page: list', () => {
     mockList([]);
     const { user } = renderApp('/transactions');
     expect(await screen.findByText('No transactions yet')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: 'Main' }));
+    await user.click(screen.getByRole('button', { name: 'Main' }));
     expect(await screen.findByText('No matching transactions')).toBeInTheDocument();
   });
 
@@ -141,7 +141,9 @@ describe('Transactions page: create', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add transaction' }));
 
     expect(within(dialog).getByText('Choose the account for this transaction')).toBeInTheDocument();
-    expect(within(dialog).getByRole('radio', { name: 'Main' })).toBeInvalid();
+    const account = within(dialog).getByRole('group', { name: 'Account' });
+    expect(account).toHaveAttribute('aria-invalid', 'true');
+    expect(account).toHaveAccessibleDescription('Choose the account for this transaction');
     expect(posted).toBe(false);
   });
 
@@ -150,7 +152,7 @@ describe('Transactions page: create', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'New transaction' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('radio', { name: 'Main' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Main' }));
     await user.type(within(dialog).getByLabelText('Amount (CHF)'), '12.345');
     await user.click(within(dialog).getByRole('button', { name: 'Add transaction' }));
     expect(within(dialog).getByLabelText('Amount (CHF)')).toHaveAccessibleDescription(
@@ -176,8 +178,8 @@ describe('Transactions page: create', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'New transaction' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('radio', { name: 'Savings' }));
-    await user.click(within(dialog).getByRole('radio', { name: 'Income' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Savings' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Income' }));
     await user.type(within(dialog).getByLabelText('Amount (CHF)'), "1'234.55");
     await user.clear(within(dialog).getByLabelText('Date'));
     await user.type(within(dialog).getByLabelText('Date'), '2026-06-01');
@@ -216,7 +218,7 @@ describe('Transactions page: create', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'New transaction' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('radio', { name: 'Main' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Main' }));
     await user.type(within(dialog).getByLabelText('Amount (CHF)'), '20');
     await user.type(within(dialog).getByLabelText('Description'), 'Train');
     await user.selectOptions(within(dialog).getByLabelText('Project (optional)'), 'Holiday');
@@ -241,7 +243,7 @@ describe('Transactions page: create', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'New transaction' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('radio', { name: 'Main' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Main' }));
     await user.type(within(dialog).getByLabelText('Amount (CHF)'), '20');
     await user.type(within(dialog).getByLabelText('Description'), 'Train');
     await user.click(within(dialog).getByRole('button', { name: 'Add transaction' }));
@@ -273,7 +275,7 @@ describe('Transactions page: edit and delete', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'Edit Groceries' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit transaction' });
-    expect(within(dialog).queryByRole('radio', { name: 'Main' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Main' })).not.toBeInTheDocument();
     expect(within(dialog).getByText('(cannot be changed after creation)')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Amount (CHF)')).toHaveValue('45.50');
 
@@ -296,7 +298,7 @@ describe('Transactions page: edit and delete', () => {
     const { user } = renderApp('/transactions');
     await user.click(await screen.findByRole('button', { name: 'Edit Groceries' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('radio', { name: 'Income' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Income' }));
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(bodies).toEqual([{ type: 'income', amountCents: 4550 }]));
   });

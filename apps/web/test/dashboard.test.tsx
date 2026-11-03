@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
+import { barClasses } from '@mui/x-charts/BarChart';
+import { lineClasses } from '@mui/x-charts/LineChart';
 import { monthRange } from '../src/lib/dates';
 import * as f from './fixtures';
 import { http, HttpResponse, recordGet, server } from './server';
@@ -40,7 +42,7 @@ describe('Dashboard', () => {
 
   it('renders the charts with data and accessible summaries', async () => {
     mockDashboard();
-    const { container } = renderApp('/');
+    renderApp('/');
     const balance = await screen.findByRole('img', { name: 'Balance over time' });
     expect(balance).toHaveAccessibleDescription(
       "Total balance grew from CHF 8'100.00 at the end of Jun 2026 to CHF 11'300.00 at the end of Aug 2026.",
@@ -51,11 +53,13 @@ describe('Dashboard', () => {
     expect(screen.getByRole('img', { name: 'Spending per project' })).toHaveAccessibleDescription(
       "Expenses total CHF 10'400.00; the largest share is untagged expenses with CHF 8'600.00 (83%).",
     );
-    // Recharts drew SVG marks: lines for balances, bars for flows and projects
-    await waitFor(() =>
-      expect(container.querySelectorAll('.recharts-line').length).toBeGreaterThan(0),
-    );
-    expect(container.querySelectorAll('.recharts-bar-rectangle').length).toBeGreaterThan(0);
+    // MUI X Charts drew SVG marks: lines for balances and net, bars for flows and projects
+    await waitFor(() => expect(balance.querySelectorAll(`.${lineClasses.line}`)).toHaveLength(3));
+    const flows = screen.getByRole('img', { name: 'Income vs. expenses' });
+    expect(flows.querySelectorAll(`.${barClasses.element}`)).toHaveLength(6);
+    expect(flows.querySelectorAll(`.${lineClasses.line}`)).toHaveLength(1);
+    const spending = screen.getByRole('img', { name: 'Spending per project' });
+    expect(spending.querySelectorAll(`.${barClasses.element}`)).toHaveLength(3);
     expect(screen.getAllByText('No project').length).toBeGreaterThan(0);
   });
 
@@ -79,7 +83,7 @@ describe('Dashboard', () => {
     const budget = (await screen.findByRole('heading', { name: 'Budget usage' })).closest(
       'section',
     )!;
-    const meters = await within(budget).findAllByRole('meter');
+    const meters = await within(budget).findAllByRole('progressbar');
     // the course has no budget, so it is not listed
     expect(meters).toHaveLength(2);
     expect(within(budget).getByText('Over budget')).toBeInTheDocument();
@@ -105,15 +109,18 @@ describe('Dashboard', () => {
     expect(stats.urls.at(-1)!.searchParams.get('from')).toBe(monthRange(6).from);
     expect(stats.urls.at(-1)!.searchParams.get('to')).toBe(monthRange(6).to);
 
-    await user.click(screen.getByRole('radio', { name: '3 months' }));
+    await user.click(screen.getByRole('button', { name: '3 months' }));
     await waitFor(() =>
       expect(stats.urls.at(-1)!.searchParams.get('from')).toBe(monthRange(3).from),
     );
-    await user.click(screen.getByRole('radio', { name: '12 months' }));
+    await user.click(screen.getByRole('button', { name: '12 months' }));
     await waitFor(() =>
       expect(stats.urls.at(-1)!.searchParams.get('from')).toBe(monthRange(12).from),
     );
-    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked();
+    expect(screen.getByRole('button', { name: '12 months' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('shows an empty state before the first transaction', async () => {

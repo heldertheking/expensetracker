@@ -85,8 +85,8 @@ describe('Activity page', () => {
 
     expect(await screen.findByText('Expense of CHF 45.50 added')).toBeInTheDocument();
     expect(screen.getByText('Project “Kitchen renovation” updated')).toBeInTheDocument();
-    const list = document.querySelector('.activity-list') as HTMLElement;
-    expect(within(list).getAllByRole('listitem')).toHaveLength(20);
+    const card = screen.getByRole('navigation', { name: 'Activity pages' }).parentElement!;
+    expect(within(card).getAllByRole('listitem')).toHaveLength(20);
 
     const nav = screen.getByRole('navigation', { name: 'Activity pages' });
     expect(within(nav).getByText('1–20 of 26 · page 1 of 2')).toBeInTheDocument();

@@ -4,8 +4,9 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { server } from './server';
 
 /**
- * jsdom has no layout: charts need a ResizeObserver and a non-zero size. The observer stub never
- * fires, and chart containers measure as a fixed 640 x 260 box.
+ * jsdom has no layout. MUI X Charts needs a ResizeObserver (the stub never fires) and reads the
+ * chart container's computed width, which jsdom reports as `100%`; chart containers are given a
+ * fixed 640px width instead, so the plots have room to draw.
  */
 class ResizeObserverStub {
   observe() {}
@@ -14,22 +15,17 @@ class ResizeObserverStub {
 }
 vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
-const measure = HTMLElement.prototype.getBoundingClientRect;
-HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-  if (this.classList.contains('recharts-responsive-container')) {
-    return {
-      x: 0,
-      y: 0,
-      top: 0,
-      left: 0,
-      right: 640,
-      bottom: 260,
-      width: 640,
-      height: 260,
-      toJSON() {},
-    };
-  }
-  return measure.call(this);
+const computeStyle = window.getComputedStyle.bind(window);
+window.getComputedStyle = (element: Element, pseudo?: string | null) => {
+  const style = computeStyle(element, pseudo);
+  if (!element.classList.contains('MuiChartsSurface-root')) return style;
+  return new Proxy(style, {
+    get: (target, key) => {
+      if (key === 'width') return '640px';
+      const value: unknown = Reflect.get(target, key);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 };
 window.scrollTo = () => {};
 
