@@ -1,8 +1,22 @@
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import type { Theme } from '@mui/material/styles';
 import type { Project, Transaction } from '@expensetracker/schema';
 import { formatDate } from '../lib/dates';
 import { formatChf } from '../lib/money';
 import { ACCOUNT_LABELS } from '../lib/events';
-import { Link } from '../router';
+import { visuallyHidden } from '../lib/a11y';
+import { RouterLink } from '../router';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -17,6 +31,31 @@ export function signedAmount(transaction: Transaction): string {
   return `${sign}${formatChf(transaction.amountCents)}`;
 }
 
+/** On phones every row becomes a small card, each cell labelled by its column. */
+const stackOnPhones = (theme: Theme) => ({
+  [theme.breakpoints.down('sm')]: {
+    '& thead': { display: 'none' },
+    '& table, & tbody, & tr, & td': { display: 'block', width: '100%' },
+    '& tr': { py: 1, borderBottom: `1px solid ${theme.palette.divider}` },
+    '& td': {
+      border: 'none',
+      py: 0.5,
+      px: 0,
+      display: 'flex',
+      flexDirection: 'row', // MUI right-aligned cells use row-reverse
+      justifyContent: 'space-between',
+      gap: 2,
+      textAlign: 'right',
+    },
+    '& td:not([data-label])': { justifyContent: 'flex-end' },
+    '& td[data-label]::before': {
+      content: 'attr(data-label)',
+      color: theme.palette.text.secondary,
+      textAlign: 'left',
+    },
+  },
+});
+
 export function TransactionTable({
   transactions,
   projects,
@@ -26,73 +65,80 @@ export function TransactionTable({
 }: TransactionTableProps) {
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   return (
-    <div className="table-wrap">
-      <table className="data-table transactions-table">
-        <caption className="visually-hidden">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Description</th>
-            <th scope="col">Project</th>
-            <th scope="col">Account</th>
-            <th scope="col" className="num">
-              Amount
-            </th>
-            <th scope="col">
-              <span className="visually-hidden">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+    <TableContainer sx={stackOnPhones}>
+      <Table size="small">
+        <caption style={visuallyHidden}>{caption}</caption>
+        <TableHead>
+          <TableRow>
+            <TableCell>Date</TableCell>
+            <TableCell>Description</TableCell>
+            <TableCell>Project</TableCell>
+            <TableCell>Account</TableCell>
+            <TableCell align="right">Amount</TableCell>
+            <TableCell>
+              <Box component="span" sx={visuallyHidden}>
+                Actions
+              </Box>
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {transactions.map((t) => {
             const projectName = t.projectId ? projectNames.get(t.projectId) : undefined;
             return (
-              <tr key={t.id}>
-                <td data-label="Date">{formatDate(t.date)}</td>
-                <td data-label="Description">{t.description}</td>
-                <td data-label="Project">
+              <TableRow key={t.id} hover>
+                <TableCell data-label="Date">{formatDate(t.date)}</TableCell>
+                <TableCell data-label="Description">{t.description}</TableCell>
+                <TableCell data-label="Project">
                   {t.projectId ? (
-                    <Link to={`/projects/${t.projectId}`} className="tag">
-                      {projectName ?? 'Unknown project'}
-                    </Link>
+                    <Chip
+                      size="small"
+                      clickable
+                      component={RouterLink}
+                      href={`/projects/${t.projectId}`}
+                      label={projectName ?? 'Unknown project'}
+                    />
                   ) : (
-                    <span className="muted">–</span>
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
+                      –
+                    </Box>
                   )}
-                </td>
-                <td data-label="Account">
-                  <span className={`account-pill account-${t.account}`}>
-                    {ACCOUNT_LABELS[t.account]}
-                  </span>
-                </td>
-                <td data-label="Amount" className={`num amount amount-${t.type}`}>
-                  <span className="visually-hidden">
+                </TableCell>
+                <TableCell data-label="Account">
+                  <Chip size="small" variant="outlined" label={ACCOUNT_LABELS[t.account]} />
+                </TableCell>
+                <TableCell
+                  data-label="Amount"
+                  align="right"
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: t.type === 'income' ? 'success.main' : 'text.primary',
+                    fontWeight: t.type === 'income' ? 600 : 400,
+                  }}
+                >
+                  <Box component="span" sx={visuallyHidden}>
                     {t.type === 'income' ? 'Income' : 'Expense'}{' '}
-                  </span>
+                  </Box>
                   {signedAmount(t)}
-                </td>
-                <td className="row-actions">
-                  <button
-                    type="button"
-                    className="button ghost small"
-                    onClick={() => onEdit(t)}
-                    aria-label={`Edit ${t.description}`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="button ghost small danger-text"
-                    onClick={() => onDelete(t)}
-                    aria-label={`Delete ${t.description}`}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  <Tooltip title={`Edit ${t.description}`}>
+                    <IconButton size="small" onClick={() => onEdit(t)}>
+                      <EditOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={`Delete ${t.description}`}>
+                    <IconButton size="small" color="error" onClick={() => onDelete(t)}>
+                      <DeleteOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }

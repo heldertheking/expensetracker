@@ -15,7 +15,13 @@ import { centsToFrancsInput, parseFrancsToCents } from '../lib/money';
 import { toIsoDate } from '../lib/dates';
 import { ACCOUNT_LABELS } from '../lib/events';
 import { issuesToFieldErrors } from '../lib/issues';
-import { Field } from './FormField';
+import { ChoiceField } from './ChoiceField';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 /** Request fields that a form field shows errors for under another name. */
 const FIELD_NAMES = { amountCents: 'amount' };
@@ -154,145 +160,109 @@ export function TransactionForm({
     }
   };
 
-  const fieldIds = (name: string) => `${id}-${name}`;
+  const helper = (name: string, hint?: string) => errors[name] ?? hint;
 
   return (
-    <form className="form" onSubmit={submit} noValidate>
-      {errors[''] && (
-        <p className="form-error" role="alert">
-          {errors['']}
-        </p>
-      )}
+    <Stack component="form" spacing={2.5} onSubmit={submit} noValidate sx={{ pt: 1 }}>
+      {errors[''] && <Alert severity="error">{errors['']}</Alert>}
 
       {isEdit ? (
-        <div className="field">
-          <span className="label">Account</span>
-          <p className="readonly-value">
+        <Box>
+          <Typography variant="body2" color="text.secondary">
+            Account
+          </Typography>
+          <Typography>
             {ACCOUNT_LABELS[transaction.account]}{' '}
-            <span className="muted">(cannot be changed after creation)</span>
-          </p>
-        </div>
+            <Typography component="span" variant="body2" color="text.secondary">
+              (cannot be changed after creation)
+            </Typography>
+          </Typography>
+        </Box>
       ) : (
-        <fieldset
-          className={`field choice-group ${errors.account ? 'has-error' : ''}`}
-          aria-describedby={errors.account ? fieldIds('account-error') : undefined}
-        >
-          <legend>Account</legend>
-          <div className="choices">
-            {ACCOUNTS.map((account) => (
-              <label key={account} className="choice">
-                <input
-                  type="radio"
-                  name="account"
-                  value={account}
-                  checked={values.account === account}
-                  onChange={() => set('account', account)}
-                  aria-invalid={Boolean(errors.account)}
-                />
-                {ACCOUNT_LABELS[account]}
-              </label>
-            ))}
-          </div>
-          {errors.account && (
-            <p id={fieldIds('account-error')} className="field-error">
-              {errors.account}
-            </p>
-          )}
-        </fieldset>
+        <ChoiceField
+          label="Account"
+          value={values.account}
+          options={ACCOUNTS.map((account) => ({ value: account, label: ACCOUNT_LABELS[account] }))}
+          onChange={(account) => set('account', account)}
+          error={errors.account}
+        />
       )}
 
-      <fieldset className={`field choice-group ${errors.type ? 'has-error' : ''}`}>
-        <legend>Type</legend>
-        <div className="choices">
-          {(['expense', 'income'] as const).map((type) => (
-            <label key={type} className="choice">
-              <input
-                type="radio"
-                name="type"
-                value={type}
-                checked={values.type === type}
-                onChange={() => set('type', type)}
-              />
-              {type === 'income' ? 'Income' : 'Expense'}
-            </label>
-          ))}
-        </div>
-        {errors.type && <p className="field-error">{errors.type}</p>}
-      </fieldset>
+      <ChoiceField
+        label="Type"
+        value={values.type}
+        options={[
+          { value: 'expense', label: 'Expense' },
+          { value: 'income', label: 'Income' },
+        ]}
+        onChange={(type) => set('type', type)}
+        error={errors.type}
+      />
 
-      <div className="field-row">
-        <Field
-          id={fieldIds('amount')}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        <TextField
+          id={`${id}-amount`}
           label="Amount (CHF)"
-          error={errors.amount}
-          hint="In francs, e.g. 12.50"
-        >
-          {(aria) => (
-            <input
-              {...aria}
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={values.amount}
-              onChange={(e) => set('amount', e.target.value)}
-            />
-          )}
-        </Field>
-        <Field id={fieldIds('date')} label="Date" error={errors.date}>
-          {(aria) => (
-            <input
-              {...aria}
-              type="date"
-              value={values.date}
-              max={toIsoDate(new Date())}
-              onChange={(e) => set('date', e.target.value)}
-            />
-          )}
-        </Field>
-      </div>
+          fullWidth
+          autoComplete="off"
+          value={values.amount}
+          onChange={(e) => set('amount', e.target.value)}
+          error={Boolean(errors.amount)}
+          helperText={helper('amount', 'In francs, e.g. 12.50')}
+          slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+        />
+        <TextField
+          id={`${id}-date`}
+          label="Date"
+          type="date"
+          fullWidth
+          value={values.date}
+          onChange={(e) => set('date', e.target.value)}
+          error={Boolean(errors.date)}
+          helperText={helper('date')}
+          slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: toIsoDate(new Date()) } }}
+        />
+      </Stack>
 
-      <Field id={fieldIds('description')} label="Description" error={errors.description}>
-        {(aria) => (
-          <input
-            {...aria}
-            type="text"
-            maxLength={TRANSACTION_DESCRIPTION_MAX}
-            value={values.description}
-            onChange={(e) => set('description', e.target.value)}
-          />
-        )}
-      </Field>
+      <TextField
+        id={`${id}-description`}
+        label="Description"
+        fullWidth
+        value={values.description}
+        onChange={(e) => set('description', e.target.value)}
+        error={Boolean(errors.description)}
+        helperText={helper('description')}
+        slotProps={{ htmlInput: { maxLength: TRANSACTION_DESCRIPTION_MAX } }}
+      />
 
-      <Field
-        id={fieldIds('project')}
+      <TextField
+        id={`${id}-project`}
+        select
         label="Project (optional)"
-        error={errors.projectId}
-        hint="Tagged expenses use up the project's budget, tagged income refills it."
-      >
-        {(aria) => (
-          <select
-            {...aria}
-            value={values.projectId}
-            onChange={(e) => set('projectId', e.target.value)}
-          >
-            <option value="">No project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+        fullWidth
+        value={values.projectId}
+        onChange={(e) => set('projectId', e.target.value)}
+        error={Boolean(errors.projectId)}
+        helperText={helper(
+          'projectId',
+          "Tagged expenses use up the project's budget, tagged income refills it.",
         )}
-      </Field>
+        slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+      >
+        <option value="">No project</option>
+        {projects.map((project) => (
+          <option key={project.id} value={project.id}>
+            {project.name}
+          </option>
+        ))}
+      </TextField>
 
-      <div className="form-actions">
-        <button type="button" className="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="button primary" disabled={submitting}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="contained" disabled={submitting}>
           {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Stack>
+    </Stack>
   );
 }

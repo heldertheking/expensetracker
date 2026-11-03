@@ -1,3 +1,8 @@
+import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import type { Project } from '@expensetracker/schema';
 import { formatChf } from '../lib/money';
 
@@ -20,39 +25,51 @@ export function budgetText(project: Project): string {
 
 /**
  * A bullet-style meter: the fill is the used share of the budget, the track the rest. An
- * over-budget project fills completely in the critical color and carries an icon and a label, so
- * the state never relies on color alone.
+ * over-budget project fills completely in the error color and carries an icon and a label, so the
+ * state never relies on color alone.
  */
 export function BudgetMeter({ project }: { project: Project }) {
   const usage = budgetUsage(project);
   if (usage === null) {
-    return <p className="budget-text muted">{budgetText(project)}</p>;
+    return (
+      <Typography variant="body2" color="text.secondary">
+        {budgetText(project)}
+      </Typography>
+    );
   }
   const percent = Math.round(usage * 100);
   const fill = Math.min(100, Math.max(0, percent));
-  const state = project.overBudget ? 'over' : percent >= 90 ? 'near' : 'ok';
+  const color = project.overBudget ? 'error' : percent >= 90 ? 'warning' : 'primary';
   return (
-    <div className={`budget budget-${state}`}>
-      <div
-        className="meter"
-        role="meter"
+    <Stack spacing={0.75}>
+      <LinearProgress
+        variant="determinate"
+        value={fill}
+        color={color}
         aria-label={`Budget used for ${project.name}`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.max(0, percent)}
         aria-valuetext={`${percent}% used. ${budgetText(project)}`}
-      >
-        <span className="meter-fill" style={{ width: `${fill}%` }} />
-      </div>
-      <p className="budget-text">
+      />
+      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
         {project.overBudget && (
-          <span className="badge badge-critical">
-            <span aria-hidden="true">▲ </span>Over budget
-          </span>
+          <Chip
+            size="small"
+            color="error"
+            variant="outlined"
+            icon={<WarningAmberIcon aria-hidden="true" />}
+            label="Over budget"
+          />
         )}
-        <span>{budgetText(project)}</span>
-        <span className="budget-percent">{percent}%</span>
-      </p>
-    </div>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+          {budgetText(project)}
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontVariantNumeric: 'tabular-nums' }}
+        >
+          {percent}%
+        </Typography>
+      </Stack>
+    </Stack>
   );
 }

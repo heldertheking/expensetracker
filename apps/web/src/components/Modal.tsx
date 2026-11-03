@@ -1,87 +1,39 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
 import { errorMessage } from '../api/client';
 
 interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** `alertdialog` for confirmations that interrupt the user. */
-  role?: 'dialog' | 'alertdialog';
 }
 
-/**
- * A modal dialog: focus moves into it, Escape and the backdrop close it, Tab stays inside, and
- * focus returns to where it was when it closes.
- */
-export function Modal({ title, onClose, children, role = 'dialog' }: ModalProps) {
+/** A dialog with a title and a close button; MUI traps focus, and Escape or the backdrop close it. */
+export function Modal({ title, onClose, children }: ModalProps) {
   const titleId = useId();
-  const panel = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const focusable = panel.current?.querySelector<HTMLElement>(
-      'input, select, textarea, button:not([data-close])',
-    );
-    (focusable ?? panel.current)?.focus();
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeRef.current();
-      }
-      if (event.key === 'Tab' && panel.current) {
-        const items = Array.from(
-          panel.current.querySelectorAll<HTMLElement>(
-            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
-          ),
-        );
-        if (items.length === 0) return;
-        const first = items[0]!;
-        const last = items[items.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      previous?.focus?.();
-    };
-  }, []);
-
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div
-        ref={panel}
-        className="modal"
-        role={role}
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
+    <Dialog open onClose={onClose} aria-labelledby={titleId} fullWidth maxWidth="sm">
+      <DialogTitle id={titleId} sx={{ pr: 7 }}>
+        {title}
+      </DialogTitle>
+      <IconButton
+        aria-label="Close"
+        onClick={onClose}
+        sx={{ position: 'absolute', right: 12, top: 12 }}
       >
-        <header className="modal-header">
-          <h2 id={titleId}>{title}</h2>
-          <button
-            type="button"
-            className="icon-button"
-            data-close
-            aria-label="Close"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
-        {children}
-      </div>
-    </div>
+        <CloseIcon />
+      </IconButton>
+      <DialogContent>{children}</DialogContent>
+    </Dialog>
   );
 }
 
@@ -101,6 +53,7 @@ export function ConfirmDialog({
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
+  const titleId = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,23 +69,31 @@ export function ConfirmDialog({
   };
 
   return (
-    <Modal title={title} onClose={onClose} role="alertdialog">
-      <div className="modal-body">
-        <p>{message}</p>
+    <Dialog
+      open
+      onClose={onClose}
+      aria-labelledby={titleId}
+      slotProps={{ paper: { role: 'alertdialog' } }}
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle id={titleId}>{title}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>{message}</DialogContentText>
         {error && (
-          <p className="form-error" role="alert">
+          <Alert severity="error" sx={{ mt: 2 }}>
             {error}
-          </p>
+          </Alert>
         )}
-      </div>
-      <footer className="modal-actions">
-        <button type="button" className="button" onClick={onClose}>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} autoFocus>
           Cancel
-        </button>
-        <button type="button" className="button danger" disabled={busy} onClick={confirm}>
+        </Button>
+        <Button variant="contained" color="error" disabled={busy} onClick={confirm}>
           {busy ? 'Working…' : confirmLabel}
-        </button>
-      </footer>
-    </Modal>
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

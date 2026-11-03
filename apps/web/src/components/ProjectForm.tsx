@@ -13,7 +13,12 @@ import { createProject, updateProject } from '../api/endpoints';
 import { ApiRequestError, errorMessage } from '../api/client';
 import { formatChf, parseFrancsToCents } from '../lib/money';
 import { issuesToFieldErrors } from '../lib/issues';
-import { Field } from './FormField';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 const FIELD_NAMES = { budgetCents: 'budget' };
 
@@ -80,69 +85,64 @@ export function ProjectForm({ project, onSaved, onCancel }: ProjectFormProps) {
   };
 
   return (
-    <form className="form" onSubmit={submit} noValidate>
-      {errors[''] && (
-        <p className="form-error" role="alert">
-          {errors['']}
-        </p>
-      )}
-      <Field id={`${id}-name`} label="Name" error={errors.name}>
-        {(aria) => (
-          <input
-            {...aria}
-            type="text"
-            maxLength={PROJECT_NAME_MAX}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        )}
-      </Field>
-      <Field id={`${id}-description`} label="Description (optional)" error={errors.description}>
-        {(aria) => (
-          <textarea
-            {...aria}
-            rows={3}
-            maxLength={PROJECT_DESCRIPTION_MAX}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        )}
-      </Field>
+    <Stack component="form" spacing={2.5} onSubmit={submit} noValidate sx={{ pt: 1 }}>
+      {errors[''] && <Alert severity="error">{errors['']}</Alert>}
+      <TextField
+        id={`${id}-name`}
+        label="Name"
+        fullWidth
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        error={Boolean(errors.name)}
+        helperText={errors.name}
+        slotProps={{ htmlInput: { maxLength: PROJECT_NAME_MAX } }}
+      />
+      <TextField
+        id={`${id}-description`}
+        label="Description (optional)"
+        fullWidth
+        multiline
+        minRows={3}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        error={Boolean(errors.description)}
+        helperText={errors.description}
+        slotProps={{ htmlInput: { maxLength: PROJECT_DESCRIPTION_MAX } }}
+      />
       {project ? (
-        <div className="field">
-          <span className="label">Budget</span>
-          <p className="readonly-value">
+        <Box>
+          <Typography variant="body2" color="text.secondary">
+            Budget
+          </Typography>
+          <Typography>
             {project.budgetCents === null ? 'No budget' : formatChf(project.budgetCents)}{' '}
-            <span className="muted">(fixed at creation, cannot be changed)</span>
-          </p>
-        </div>
+            <Typography component="span" variant="body2" color="text.secondary">
+              (fixed at creation, cannot be changed)
+            </Typography>
+          </Typography>
+        </Box>
       ) : (
-        <Field
+        <TextField
           id={`${id}-budget`}
           label="Budget in CHF (optional)"
-          error={errors.budget}
-          hint="The initial budget is fixed once the project is created and cannot be changed later. Leave empty for no budget."
-        >
-          {(aria) => (
-            <input
-              {...aria}
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-            />
-          )}
-        </Field>
+          fullWidth
+          autoComplete="off"
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+          error={Boolean(errors.budget)}
+          helperText={
+            errors.budget ??
+            'The initial budget is fixed once the project is created and cannot be changed later. Leave empty for no budget.'
+          }
+          slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+        />
       )}
-      <div className="form-actions">
-        <button type="button" className="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="button primary" disabled={submitting}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="contained" disabled={submitting}>
           {submitting ? 'Saving…' : project ? 'Save changes' : 'Create project'}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Stack>
+    </Stack>
   );
 }

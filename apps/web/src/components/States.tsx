@@ -1,12 +1,23 @@
 import type { ReactNode } from 'react';
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { errorMessage } from '../api/client';
 
-export function Loading({ label = 'Loading' }: { label?: string }) {
+/** Skeleton placeholder; screen readers hear the label instead of the shapes. */
+export function Loading({ label = 'Loading', rows = 3 }: { label?: string; rows?: number }) {
   return (
-    <div className="state state-loading" role="status" aria-live="polite">
-      <span className="spinner" aria-hidden="true" />
-      {label}…
-    </div>
+    <Box role="status" aria-label={label} aria-live="polite" sx={{ py: 1 }}>
+      <Stack spacing={1.5} aria-hidden="true">
+        {Array.from({ length: rows }, (_, i) => (
+          <Skeleton key={i} variant="rounded" height={i === 0 ? 32 : 20} />
+        ))}
+      </Stack>
+    </Box>
   );
 }
 
@@ -20,18 +31,19 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="state state-error" role="alert">
-      <p className="state-title">
-        <span aria-hidden="true">⚠ </span>
-        {title}
-      </p>
-      <p className="muted">{errorMessage(error)}</p>
-      {onRetry && (
-        <button type="button" className="button" onClick={onRetry}>
-          Try again
-        </button>
-      )}
-    </div>
+    <Alert
+      severity="error"
+      action={
+        onRetry && (
+          <Button color="inherit" size="small" onClick={onRetry}>
+            Try again
+          </Button>
+        )
+      }
+    >
+      <AlertTitle>{title}</AlertTitle>
+      {errorMessage(error)}
+    </Alert>
   );
 }
 
@@ -45,10 +57,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="state state-empty">
-      <p className="state-title">{title}</p>
-      {children && <p className="muted">{children}</p>}
-      {action}
-    </div>
+    <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', py: 4, px: 2 }}>
+      <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
+      {children && (
+        <Typography variant="body2" color="text.secondary">
+          {children}
+        </Typography>
+      )}
+      {action && <Box sx={{ pt: 1 }}>{action}</Box>}
+    </Stack>
   );
 }
