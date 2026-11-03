@@ -26,8 +26,9 @@ const TransactionDateInput = IsoDate.refine((date) => date >= EARLIEST_DATE, {
 
 const serverManaged = readonlyFields(['id', 'createdAt', 'updatedAt'], SERVER_MANAGED);
 
+/** The account is required: every transaction belongs to the main or the savings account. */
 const CreateTransactionRequest = z.strictObject({
-  account: Account.default('main'),
+  account: Account,
   type: TransactionType,
   amountCents: MoneyCents,
   date: TransactionDateInput,
@@ -87,10 +88,10 @@ function validateTransactionUpdate(
 
 const TransactionParams = z.strictObject({ id: Id });
 
-/** `view=main` (default) lists every transaction, `view=savings` only the savings ones. */
+/** Without `account` both accounts are listed. Newest first (date, then creation). */
 const ListTransactionsQuery = z
   .strictObject({
-    view: Account.default('main'),
+    account: Account.optional(),
     projectId: Id.optional(),
     type: TransactionType.optional(),
     from: IsoDate.optional(),

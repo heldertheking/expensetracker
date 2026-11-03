@@ -26,7 +26,13 @@ const transaction = (overrides: Partial<Transaction> = {}): Transaction => ({
   ...overrides,
 });
 
-const valid = { type: 'expense', amountCents: 1_250, date: '2026-06-10', description: 'Groceries' };
+const valid = {
+  account: 'main',
+  type: 'expense',
+  amountCents: 1_250,
+  date: '2026-06-10',
+  description: 'Groceries',
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -35,10 +41,13 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('CreateTransactionRequest', () => {
-  it('defaults to the main account and no project', () => {
-    const parsed = CreateTransactionRequest.parse(valid);
-    expect(parsed.account).toBe('main');
-    expect(parsed.projectId).toBeNull();
+  it('defaults to no project', () => {
+    expect(CreateTransactionRequest.parse(valid).projectId).toBeNull();
+  });
+
+  it('requires an account', () => {
+    const result = CreateTransactionRequest.safeParse({ ...valid, account: undefined });
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(['account']);
   });
 
   it('accepts a savings deposit attached to a project', () => {
@@ -148,13 +157,13 @@ describe('validateTransactionUpdate', () => {
 });
 
 describe('ListTransactionsQuery', () => {
-  it('defaults to the main view with a page of 50', () => {
-    expect(ListTransactionsQuery.parse({})).toEqual({ view: 'main', limit: 50, offset: 0 });
+  it('defaults to both accounts with a page of 50', () => {
+    expect(ListTransactionsQuery.parse({})).toEqual({ limit: 50, offset: 0 });
   });
 
   it('coerces numeric query strings', () => {
-    const parsed = ListTransactionsQuery.parse({ view: 'savings', limit: '10', offset: '20' });
-    expect(parsed).toMatchObject({ view: 'savings', limit: 10, offset: 20 });
+    const parsed = ListTransactionsQuery.parse({ account: 'savings', limit: '10', offset: '20' });
+    expect(parsed).toMatchObject({ account: 'savings', limit: 10, offset: 20 });
   });
 
   it.each([
@@ -162,7 +171,8 @@ describe('ListTransactionsQuery', () => {
     ['limit below 1', { limit: '0' }],
     ['negative offset', { offset: '-1' }],
     ['non-numeric limit', { limit: 'many' }],
-    ['unknown view', { view: 'all' }],
+    ['unknown account', { account: 'all' }],
+    ['the removed view parameter', { view: 'main' }],
     ['from after to', { from: '2026-06-10', to: '2026-06-01' }],
     ['unknown parameter', { sort: 'date' }],
   ])('rejects %s', (_label, query) => {
