@@ -1,5 +1,13 @@
 import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 
 interface ChartCardProps {
   title: string;
@@ -10,8 +18,8 @@ interface ChartCardProps {
   /** The same data as a table: the accessible twin of the chart and the home of every value. */
   table: ReactNode;
   children: ReactNode;
-  className?: string;
   dimmed?: boolean;
+  wide?: boolean;
 }
 
 /**
@@ -24,51 +32,55 @@ export function ChartCard({
   legend,
   table,
   children,
-  className,
   dimmed,
+  wide,
 }: ChartCardProps) {
   const [showTable, setShowTable] = useState(false);
   const titleId = useId();
   const summaryId = useId();
   return (
-    <section
-      className={`card chart-card ${className ?? ''} ${dimmed ? 'is-dimmed' : ''}`}
+    <Card
+      component="section"
       aria-labelledby={titleId}
+      sx={{
+        gridColumn: wide ? '1 / -1' : undefined,
+        opacity: dimmed ? 0.55 : 1,
+        transition: 'opacity 150ms',
+        minWidth: 0,
+      }}
     >
-      <header className="card-header">
-        <div>
-          <h2 id={titleId} className="card-title">
-            {title}
-          </h2>
-          <p id={summaryId} className="card-summary">
-            {summary}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="button ghost small"
-          aria-pressed={showTable}
-          onClick={() => setShowTable((value) => !value)}
-        >
-          {showTable ? 'Show chart' : 'Show table'}
-        </button>
-      </header>
-      {showTable ? (
-        <div className="table-wrap">{table}</div>
-      ) : (
-        <>
-          {legend}
-          <div
-            className="chart-plot"
-            role="img"
-            aria-labelledby={titleId}
-            aria-describedby={summaryId}
+      <CardContent>
+        <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', mb: 2 }}>
+          <Box>
+            <Typography id={titleId} variant="h2">
+              {title}
+            </Typography>
+            <Typography id={summaryId} variant="body2" color="text.secondary">
+              {summary}
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            aria-pressed={showTable}
+            startIcon={showTable ? <BarChartIcon /> : <TableChartOutlinedIcon />}
+            onClick={() => setShowTable((value) => !value)}
+            sx={{ flexShrink: 0, alignSelf: 'flex-start', whiteSpace: 'nowrap' }}
           >
-            {children}
-          </div>
-        </>
-      )}
-    </section>
+            {showTable ? 'Show chart' : 'Show table'}
+          </Button>
+        </Stack>
+        {showTable ? (
+          table
+        ) : (
+          <>
+            {legend}
+            <Box role="img" aria-labelledby={titleId} aria-describedby={summaryId}>
+              {children}
+            </Box>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -78,43 +90,37 @@ export interface LegendItem {
   shape: 'line' | 'rect';
 }
 
+/** Legend keys mirror the marks: a short line for lines, a square for bars. */
 export function ChartLegend({ items }: { items: LegendItem[] }) {
   return (
-    <ul className="chart-legend" aria-label="Legend">
+    <Stack
+      component="ul"
+      aria-label="Legend"
+      direction="row"
+      spacing={2}
+      useFlexGap
+      sx={{ listStyle: 'none', m: 0, mb: 1, p: 0, flexWrap: 'wrap' }}
+    >
       {items.map((item) => (
-        <li key={item.label}>
-          <span
-            className={`legend-key legend-${item.shape}`}
-            style={{ background: item.color }}
+        <Stack
+          component="li"
+          key={item.label}
+          direction="row"
+          spacing={0.75}
+          sx={{ alignItems: 'center', typography: 'body2', color: 'text.secondary' }}
+        >
+          <Box
             aria-hidden="true"
+            sx={{
+              bgcolor: item.color,
+              width: item.shape === 'line' ? 14 : 10,
+              height: item.shape === 'line' ? 2 : 10,
+              borderRadius: item.shape === 'line' ? 1 : 0.5,
+            }}
           />
-          {item.label}
-        </li>
+          <span>{item.label}</span>
+        </Stack>
       ))}
-    </ul>
-  );
-}
-
-interface TooltipRow {
-  label: string;
-  value: string;
-  color: string;
-}
-
-/** Tooltip body: value first and strong, series name after, keyed by a short line. */
-export function TooltipBox({ title, rows }: { title: string; rows: TooltipRow[] }) {
-  return (
-    <div className="chart-tooltip">
-      <p className="chart-tooltip-title">{title}</p>
-      <ul>
-        {rows.map((row) => (
-          <li key={row.label}>
-            <span className="tooltip-key" style={{ background: row.color }} aria-hidden="true" />
-            <strong>{row.value}</strong>
-            <span className="muted">{row.label}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </Stack>
   );
 }

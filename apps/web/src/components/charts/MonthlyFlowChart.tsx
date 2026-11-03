@@ -1,19 +1,19 @@
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useTheme } from '@mui/material/styles';
+import { BarPlot } from '@mui/x-charts/BarChart';
+import { ChartsAxisHighlight } from '@mui/x-charts/ChartsAxisHighlight';
+import { ChartsContainer } from '@mui/x-charts/ChartsContainer';
+import { ChartsGrid } from '@mui/x-charts/ChartsGrid';
+import { ChartsReferenceLine } from '@mui/x-charts/ChartsReferenceLine';
+import { ChartsTooltip } from '@mui/x-charts/ChartsTooltip';
+import { ChartsXAxis } from '@mui/x-charts/ChartsXAxis';
+import { ChartsYAxis } from '@mui/x-charts/ChartsYAxis';
+import { LinePlot, MarkPlot } from '@mui/x-charts/LineChart';
 import type { MonthlyFlow } from '@expensetracker/schema';
 import { formatChf, formatCompactChf, formatSignedChf } from '../../lib/money';
 import { formatMonth } from '../../lib/dates';
-import { CHART_HEIGHT, INITIAL_DIMENSION, axisProps, gridProps, SERIES } from './theme';
-import { ChartCard, ChartLegend, TooltipBox } from './ChartCard';
+import { ChartCard, ChartLegend } from './ChartCard';
+import { DataTable } from './DataTable';
+import { CHART_HEIGHT, axisSx, monthAxis } from './chartProps';
 
 export function flowSummary(monthly: MonthlyFlow[]): string {
   const income = monthly.reduce((sum, m) => sum + m.incomeCents, 0);
@@ -22,6 +22,9 @@ export function flowSummary(monthly: MonthlyFlow[]): string {
   return `Over ${months}: income ${formatChf(income)}, expenses ${formatChf(expense)}, net ${formatSignedChf(income - expense)}.`;
 }
 
+const chf = (v: number | null) => (v === null ? '' : formatChf(v));
+
+/** Income and expenses as grouped columns, net as a line on the same axis. */
 export function MonthlyFlowChart({
   monthly,
   dimmed,
@@ -29,7 +32,8 @@ export function MonthlyFlowChart({
   monthly: MonthlyFlow[];
   dimmed?: boolean;
 }) {
-  const byMonth = new Map(monthly.map((m) => [m.month, m]));
+  const { chart } = useTheme();
+  const [income, expense, net] = chart.series;
   return (
     <ChartCard
       title="Income vs. expenses"
@@ -38,98 +42,78 @@ export function MonthlyFlowChart({
       legend={
         <ChartLegend
           items={[
-            { label: 'Income', color: SERIES[0], shape: 'rect' },
-            { label: 'Expenses', color: SERIES[1], shape: 'rect' },
-            { label: 'Net', color: SERIES[2], shape: 'line' },
+            { label: 'Income', color: income, shape: 'rect' },
+            { label: 'Expenses', color: expense, shape: 'rect' },
+            { label: 'Net', color: net, shape: 'line' },
           ]}
         />
       }
       table={
-        <table className="data-table">
-          <caption className="visually-hidden">Income and expenses per month</caption>
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              <th scope="col" className="num">
-                Income
-              </th>
-              <th scope="col" className="num">
-                Expenses
-              </th>
-              <th scope="col" className="num">
-                Net
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {monthly.map((m) => (
-              <tr key={m.month}>
-                <th scope="row">{formatMonth(m.month, true)}</th>
-                <td className="num">{formatChf(m.incomeCents)}</td>
-                <td className="num">{formatChf(m.expenseCents)}</td>
-                <td className="num">{formatSignedChf(m.netCents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          caption="Income and expenses per month"
+          columns={['Month', 'Income', 'Expenses', 'Net']}
+          rows={monthly.map((m) => ({
+            key: m.month,
+            label: formatMonth(m.month, true),
+            values: [
+              formatChf(m.incomeCents),
+              formatChf(m.expenseCents),
+              formatSignedChf(m.netCents),
+            ],
+          }))}
+        />
       }
     >
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT} initialDimension={INITIAL_DIMENSION}>
-        <ComposedChart
-          data={monthly}
-          margin={{ top: 8, right: 16, bottom: 0, left: 0 }}
-          barGap={2}
-          barCategoryGap="20%"
-        >
-          <CartesianGrid {...gridProps} />
-          <XAxis dataKey="month" tickFormatter={(m: string) => formatMonth(m)} {...axisProps} />
-          <YAxis tickFormatter={formatCompactChf} width={48} {...axisProps} />
-          <ReferenceLine y={0} stroke="var(--axis)" />
-          <Tooltip
-            cursor={{ fill: 'var(--hover-wash)' }}
-            content={({ active, label }) => {
-              const row = active ? byMonth.get(String(label)) : undefined;
-              if (!row) return null;
-              return (
-                <TooltipBox
-                  title={formatMonth(row.month, true)}
-                  rows={[
-                    { label: 'Income', color: SERIES[0], value: formatChf(row.incomeCents) },
-                    { label: 'Expenses', color: SERIES[1], value: formatChf(row.expenseCents) },
-                    { label: 'Net', color: SERIES[2], value: formatSignedChf(row.netCents) },
-                  ]}
-                />
-              );
-            }}
-          />
-          <Bar
-            dataKey="incomeCents"
-            name="Income"
-            fill={SERIES[0]}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={24}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="expenseCents"
-            name="Expenses"
-            fill={SERIES[1]}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={24}
-            isAnimationActive={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="netCents"
-            name="Net"
-            stroke={SERIES[2]}
-            strokeWidth={2}
-            dot={{ r: 4, fill: SERIES[2], stroke: 'var(--surface)', strokeWidth: 2 }}
-            activeDot={{ r: 5, stroke: 'var(--surface)', strokeWidth: 2 }}
-            isAnimationActive={false}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      <ChartsContainer
+        height={CHART_HEIGHT}
+        skipAnimation
+        margin={{ top: 8, right: 24, bottom: 0, left: 0 }}
+        xAxis={[
+          {
+            ...monthAxis(
+              monthly.map((m) => m.month),
+              'band',
+            ),
+            categoryGapRatio: 0.45,
+            barGapRatio: 0.1,
+          },
+        ]}
+        yAxis={[{ width: 48, valueFormatter: (v: number) => formatCompactChf(v) }]}
+        series={[
+          {
+            type: 'bar',
+            label: 'Income',
+            color: income,
+            data: monthly.map((m) => m.incomeCents),
+            valueFormatter: chf,
+          },
+          {
+            type: 'bar',
+            label: 'Expenses',
+            color: expense,
+            data: monthly.map((m) => m.expenseCents),
+            valueFormatter: chf,
+          },
+          {
+            type: 'line',
+            label: 'Net',
+            color: net,
+            data: monthly.map((m) => m.netCents),
+            valueFormatter: (v: number | null) => (v === null ? '' : formatSignedChf(v)),
+          },
+        ]}
+        sx={axisSx}
+      >
+        <ChartsGrid horizontal />
+        <BarPlot borderRadius={4} />
+        <ChartsReferenceLine y={0} lineStyle={{ stroke: chart.axis }} />
+        <LinePlot />
+        <MarkPlot />
+        <ChartsXAxis />
+        <ChartsYAxis />
+        <ChartsAxisHighlight x="band" />
+        <ChartsTooltip trigger="axis" />
+      </ChartsContainer>
     </ChartCard>
   );
 }
