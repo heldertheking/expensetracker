@@ -4,9 +4,14 @@ import type { SeedData } from './data.js';
 
 /**
  * Writes the seed data through the event bus, exactly like the API would, so every record also
- * lands in the event log. Refuses to touch a database that already holds data.
+ * lands in the event log. Refuses to touch a database that already holds data. All or nothing:
+ * the whole seed runs in one transaction, so a failure leaves the database empty.
  */
-function seedDatabase(core: Pick<Core, 'bus' | 'repositories'>, data: SeedData) {
+function seedDatabase(core: Pick<Core, 'bus' | 'repositories' | 'inTransaction'>, data: SeedData) {
+  return core.inTransaction(() => seedInTransaction(core, data));
+}
+
+function seedInTransaction(core: Pick<Core, 'bus' | 'repositories'>, data: SeedData) {
   const { projects, transactions } = core.repositories;
   if (projects.count() > 0 || transactions.count() > 0) {
     throw new Error('the database already holds data; seed only an empty database');

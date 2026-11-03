@@ -113,4 +113,18 @@ describe('seedDatabase', () => {
 
     expect(() => seedDatabase(createCore({ db }), data)).toThrow('unknown project "Nope"');
   });
+
+  it('leaves the database empty when seeding fails part-way, so it can be retried', () => {
+    const db = openDatabase();
+    const core = createCore({ db });
+    const broken = generateSeedData(TODAY);
+    broken.transactions.at(-1)!.project = 'Nope';
+
+    expect(() => seedDatabase(core, broken)).toThrow('unknown project "Nope"');
+    expect(core.repositories.projects.count()).toBe(0);
+    expect(core.repositories.transactions.count()).toBe(0);
+    expect(core.repositories.events.list({ limit: 1, offset: 0 }).total).toBe(0);
+
+    expect(seedDatabase(core, generateSeedData(TODAY)).projects).toBeGreaterThan(0);
+  });
 });

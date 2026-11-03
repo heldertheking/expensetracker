@@ -56,6 +56,8 @@ function createCore(deps: AppDeps) {
     clock,
     log,
     bus,
+    /** Runs `work` in one SQLite transaction; the bus's own transactions nest as savepoints. */
+    inTransaction: <T>(work: () => T): T => deps.db.transaction(work)(),
     repositories: { projects, transactions, events },
     services: {
       accounts: createAccountService({ transactions }),
