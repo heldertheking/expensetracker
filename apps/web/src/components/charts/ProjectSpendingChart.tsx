@@ -17,7 +17,11 @@ interface Row {
   untagged: boolean;
 }
 
-/** Largest first; the tail beyond `MAX_BARS` folds into "Other projects". */
+/**
+ * Largest first. The untagged row always stays on its own; only real projects fold into
+ * "Other projects" once more than `MAX_BARS` rows would show. Rows are keyed by project id (or the
+ * fixed keys `none` and `other`), never by name, so a project named like a synthetic row is safe.
+ */
 export function spendingRows(items: ProjectExpense[]): Row[] {
   const rows: Row[] = items.map((p) => ({
     key: p.projectId ?? 'none',
@@ -26,8 +30,12 @@ export function spendingRows(items: ProjectExpense[]): Row[] {
     untagged: p.projectId === null,
   }));
   if (rows.length <= MAX_BARS) return rows;
-  const head = rows.slice(0, MAX_BARS - 1);
-  const rest = rows.slice(MAX_BARS - 1).reduce((sum, r) => sum + r.expenseCents, 0);
+  const untagged = rows.filter((r) => r.untagged);
+  const tagged = rows.filter((r) => !r.untagged);
+  const keep = MAX_BARS - 1 - untagged.length;
+  const kept = new Set(tagged.slice(0, keep));
+  const rest = tagged.slice(keep).reduce((sum, r) => sum + r.expenseCents, 0);
+  const head = rows.filter((r) => r.untagged || kept.has(r));
   return [...head, { key: 'other', name: 'Other projects', expenseCents: rest, untagged: false }];
 }
 
@@ -50,6 +58,7 @@ export function ProjectSpendingChart({
 }) {
   const { chart } = useTheme();
   const rows = spendingRows(items);
+  const names = new Map(rows.map((r) => [r.key, r.name]));
   const height = Math.max(120, rows.length * 40 + 24);
   const maxExpense = Math.max(1, ...rows.map((r) => r.expenseCents));
   return (
@@ -84,12 +93,13 @@ export function ProjectSpendingChart({
           yAxis={[
             {
               scaleType: 'band',
-              data: rows.map((r) => r.name),
+              data: rows.map((r) => r.key),
+              valueFormatter: (key: string) => names.get(key) ?? key,
               width: 110,
               categoryGapRatio: 0.4,
               colorMap: {
                 type: 'ordinal',
-                values: rows.map((r) => r.name),
+                values: rows.map((r) => r.key),
                 colors: rows.map((r) => (r.untagged ? chart.neutral : chart.series[0])),
               },
             },

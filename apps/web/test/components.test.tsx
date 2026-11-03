@@ -107,7 +107,9 @@ describe('chart data helpers', () => {
         <ProjectSpendingChart items={items} />
       </AppThemeProvider>,
     );
-    expect(container.querySelectorAll(`.${barClasses.element}`)).toHaveLength(items.length);
+    expect(container.querySelectorAll(`.${barClasses.element}`)).toHaveLength(
+      spendingRows(items).length,
+    );
   });
 
   it('names untagged spending and handles empty data in summaries', () => {
