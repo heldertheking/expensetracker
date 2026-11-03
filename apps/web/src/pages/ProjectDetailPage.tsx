@@ -3,7 +3,10 @@ import { getProject, listProjects, listTransactions } from '../api/endpoints';
 import { ApiRequestError } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { formatChf } from '../lib/money';
-import { Link } from '../router';
+import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
+import AddIcon from '@mui/icons-material/Add';
+import { Page, PageHeader, ResponsiveGrid, SectionCard } from '../components/Layout';
 import { BudgetMeter } from '../components/BudgetMeter';
 import { Pagination } from '../components/Pagination';
 import { StatTile } from '../components/StatTile';
@@ -32,8 +35,8 @@ export function ProjectDetailPage({ id }: { id: string }) {
   if (project.error !== undefined) {
     const notFound = project.error instanceof ApiRequestError && project.error.code === 'not_found';
     return (
-      <div className="page">
-        <Link to="/projects" className="text-link back-link">
+      <Page>
+        <Link href="/projects" underline="hover" sx={{ alignSelf: 'flex-start' }}>
           ← All projects
         </Link>
         {notFound ? (
@@ -45,32 +48,32 @@ export function ProjectDetailPage({ id }: { id: string }) {
             onRetry={project.reload}
           />
         )}
-      </div>
+      </Page>
     );
   }
   if (project.data === undefined) return <Loading label="Loading project" />;
   const p = project.data;
 
   return (
-    <div className="page">
-      <Link to="/projects" className="text-link back-link">
+    <Page>
+      <Link href="/projects" underline="hover" sx={{ alignSelf: 'flex-start' }}>
         ← All projects
       </Link>
-      <header className="page-header">
-        <div>
-          <h1>{p.name}</h1>
-          {p.description && <p className="muted">{p.description}</p>}
-        </div>
-        <button
-          type="button"
-          className="button primary"
-          onClick={() => setDialog({ kind: 'create' })}
-        >
-          New tagged transaction
-        </button>
-      </header>
+      <PageHeader
+        title={p.name}
+        subtitle={p.description || undefined}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setDialog({ kind: 'create' })}
+          >
+            New tagged transaction
+          </Button>
+        }
+      />
 
-      <div className="tiles">
+      <ResponsiveGrid columns={4}>
         <StatTile
           label="Budget"
           value={p.budgetCents === null ? 'No budget' : formatChf(p.budgetCents)}
@@ -84,23 +87,19 @@ export function ProjectDetailPage({ id }: { id: string }) {
           trend={p.overBudget ? 'down' : undefined}
           detail={p.overBudget ? 'Over budget' : 'Budget − spent + refilled'}
         />
-      </div>
+      </ResponsiveGrid>
 
       {p.budgetCents !== null && (
-        <section className="card" aria-label="Budget usage">
+        <SectionCard title="Budget usage">
           <BudgetMeter project={p} />
-        </section>
+        </SectionCard>
       )}
 
-      <section className="card" aria-labelledby="tagged-title">
-        <header className="card-header">
-          <div>
-            <h2 id="tagged-title" className="card-title">
-              Tagged transactions
-            </h2>
-            <p className="card-summary">From the main and the savings account.</p>
-          </div>
-        </header>
+      <SectionCard
+        title="Tagged transactions"
+        subtitle="From the main and the savings account."
+        dimmed={transactions.loading && transactions.data !== undefined}
+      >
         {transactions.error !== undefined ? (
           <ErrorState error={transactions.error} onRetry={transactions.reload} />
         ) : transactions.data === undefined ? (
@@ -126,7 +125,7 @@ export function ProjectDetailPage({ id }: { id: string }) {
             />
           </>
         )}
-      </section>
+      </SectionCard>
 
       <TransactionDialogs
         dialog={dialog}
@@ -135,6 +134,6 @@ export function ProjectDetailPage({ id }: { id: string }) {
         onClose={() => setDialog(null)}
         onChanged={changed}
       />
-    </div>
+    </Page>
   );
 }

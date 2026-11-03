@@ -1,5 +1,14 @@
 import { useState } from 'react';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import AddIcon from '@mui/icons-material/Add';
+import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import type { Account, TransactionType } from '@expensetracker/schema';
+import { ChoiceField } from '../components/ChoiceField';
+import { Page, PageHeader } from '../components/Layout';
 import { listProjects, listTransactions } from '../api/endpoints';
 import { useApi } from '../hooks/useApi';
 import { EmptyState, ErrorState, Loading } from '../components/States';
@@ -39,139 +48,133 @@ export function TransactionsPage() {
   };
   const filtered = filters.account !== '' || filters.projectId !== '' || filters.type !== '';
 
-  return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <h1>Transactions</h1>
-          <p className="muted">Income and expenses on the main and savings account.</p>
-        </div>
-        <button
-          type="button"
-          className="button primary"
-          onClick={() => setDialog({ kind: 'create' })}
-        >
-          New transaction
-        </button>
-      </header>
+  const create = () => setDialog({ kind: 'create' });
 
-      <div className="filters" role="group" aria-label="Filters">
-        <fieldset className="segmented">
-          <legend className="visually-hidden">Account</legend>
-          {(
-            [
-              ['', 'All accounts'],
-              ['main', 'Main'],
-              ['savings', 'Savings'],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={value} className={filters.account === value ? 'is-selected' : ''}>
-              <input
-                type="radio"
-                name="account-filter"
-                value={value}
-                checked={filters.account === value}
-                onChange={() => setFilter('account', value)}
-              />
-              {label}
-            </label>
+  return (
+    <Page>
+      <PageHeader
+        title="Transactions"
+        subtitle="Income and expenses on the main and savings account."
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={create}>
+            New transaction
+          </Button>
+        }
+      />
+
+      <Stack
+        role="group"
+        aria-label="Filters"
+        direction="row"
+        spacing={2}
+        useFlexGap
+        sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+      >
+        <ChoiceField
+          label="Account"
+          hideLabel
+          size="small"
+          value={filters.account}
+          options={[
+            { value: '', label: 'All accounts' },
+            { value: 'main', label: 'Main' },
+            { value: 'savings', label: 'Savings' },
+          ]}
+          onChange={(account) => setFilter('account', account)}
+        />
+        <TextField
+          select
+          size="small"
+          label="Project"
+          value={filters.projectId}
+          onChange={(e) => setFilter('projectId', e.target.value)}
+          slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+          sx={{ minWidth: 180 }}
+        >
+          <option value="">All projects</option>
+          {(projects.data ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
-        </fieldset>
-        <label className="inline-field">
-          <span>Project</span>
-          <select
-            value={filters.projectId}
-            onChange={(e) => setFilter('projectId', e.target.value)}
-          >
-            <option value="">All projects</option>
-            {(projects.data ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="inline-field">
-          <span>Type</span>
-          <select
-            value={filters.type}
-            onChange={(e) => setFilter('type', e.target.value as Filters['type'])}
-          >
-            <option value="">Income and expenses</option>
-            <option value="income">Income</option>
-            <option value="expense">Expenses</option>
-          </select>
-        </label>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Type"
+          value={filters.type}
+          onChange={(e) => setFilter('type', e.target.value as Filters['type'])}
+          slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+          sx={{ minWidth: 180 }}
+        >
+          <option value="">Income and expenses</option>
+          <option value="income">Income</option>
+          <option value="expense">Expenses</option>
+        </TextField>
         {filtered && (
-          <button
-            type="button"
-            className="button ghost small"
+          <Button
+            size="small"
+            startIcon={<FilterAltOffOutlinedIcon />}
             onClick={() => {
               setFilters(NO_FILTERS);
               setOffset(0);
             }}
           >
             Clear filters
-          </button>
+          </Button>
         )}
-      </div>
+      </Stack>
 
-      <section className={`card ${list.loading && list.data ? 'is-dimmed' : ''}`}>
-        {list.error !== undefined ? (
-          <ErrorState
-            error={list.error}
-            title="Could not load transactions"
-            onRetry={list.reload}
-          />
-        ) : list.data === undefined ? (
-          <Loading label="Loading transactions" />
-        ) : list.data.items.length === 0 ? (
-          offset > 0 ? (
-            <EmptyState
-              title="This page is empty"
-              action={
-                <button type="button" className="button" onClick={() => setOffset(0)}>
-                  Back to the first page
-                </button>
-              }
+      <Card sx={{ opacity: list.loading && list.data ? 0.55 : 1, transition: 'opacity 150ms' }}>
+        <CardContent>
+          {list.error !== undefined ? (
+            <ErrorState
+              error={list.error}
+              title="Could not load transactions"
+              onRetry={list.reload}
             />
-          ) : filtered ? (
-            <EmptyState title="No matching transactions">Try other filters.</EmptyState>
+          ) : list.data === undefined ? (
+            <Loading label="Loading transactions" rows={6} />
+          ) : list.data.items.length === 0 ? (
+            offset > 0 ? (
+              <EmptyState
+                title="This page is empty"
+                action={<Button onClick={() => setOffset(0)}>Back to the first page</Button>}
+              />
+            ) : filtered ? (
+              <EmptyState title="No matching transactions">Try other filters.</EmptyState>
+            ) : (
+              <EmptyState
+                title="No transactions yet"
+                action={
+                  <Button variant="contained" onClick={create}>
+                    Add your first transaction
+                  </Button>
+                }
+              >
+                Record income and expenses on your main or savings account.
+              </EmptyState>
+            )
           ) : (
-            <EmptyState
-              title="No transactions yet"
-              action={
-                <button
-                  type="button"
-                  className="button primary"
-                  onClick={() => setDialog({ kind: 'create' })}
-                >
-                  Add your first transaction
-                </button>
-              }
-            >
-              Record income and expenses on your main or savings account.
-            </EmptyState>
-          )
-        ) : (
-          <>
-            <TransactionTable
-              caption="Transactions, newest first"
-              transactions={list.data.items}
-              projects={projects.data ?? []}
-              onEdit={(transaction) => setDialog({ kind: 'edit', transaction })}
-              onDelete={(transaction) => setDialog({ kind: 'delete', transaction })}
-            />
-            <Pagination
-              total={list.data.total}
-              limit={list.data.limit}
-              offset={list.data.offset}
-              onChange={setOffset}
-              label="Transaction pages"
-            />
-          </>
-        )}
-      </section>
+            <>
+              <TransactionTable
+                caption="Transactions, newest first"
+                transactions={list.data.items}
+                projects={projects.data ?? []}
+                onEdit={(transaction) => setDialog({ kind: 'edit', transaction })}
+                onDelete={(transaction) => setDialog({ kind: 'delete', transaction })}
+              />
+              <Pagination
+                total={list.data.total}
+                limit={list.data.limit}
+                offset={list.data.offset}
+                onChange={setOffset}
+                label="Transaction pages"
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <TransactionDialogs
         dialog={dialog}
@@ -179,6 +182,6 @@ export function TransactionsPage() {
         onClose={() => setDialog(null)}
         onChanged={list.reload}
       />
-    </div>
+    </Page>
   );
 }

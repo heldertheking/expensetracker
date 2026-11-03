@@ -3,7 +3,18 @@ import type { Project } from '@expensetracker/schema';
 import { deleteProject, listProjects } from '../api/endpoints';
 import { useApi } from '../hooks/useApi';
 import { formatChf } from '../lib/money';
-import { Link } from '../router';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import CardContent from '@mui/material/CardContent';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import { Page, PageHeader } from '../components/Layout';
 import { BudgetMeter } from '../components/BudgetMeter';
 import { ConfirmDialog, Modal } from '../components/Modal';
 import { ProjectForm } from '../components/ProjectForm';
@@ -24,23 +35,19 @@ export function ProjectsPage() {
     projects.reload();
   };
 
+  const create = () => setDialog({ kind: 'create' });
+
   return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <h1>Projects</h1>
-          <p className="muted">
-            Tag transactions from either account with a project to track what they were for.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="button primary"
-          onClick={() => setDialog({ kind: 'create' })}
-        >
-          New project
-        </button>
-      </header>
+    <Page>
+      <PageHeader
+        title="Projects"
+        subtitle="Tag transactions from either account with a project to track what they were for."
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={create}>
+            New project
+          </Button>
+        }
+      />
 
       {projects.error !== undefined ? (
         <ErrorState
@@ -51,63 +58,95 @@ export function ProjectsPage() {
       ) : projects.data === undefined ? (
         <Loading label="Loading projects" />
       ) : projects.data.length === 0 ? (
-        <EmptyState
-          title="No projects yet"
-          action={
-            <button
-              type="button"
-              className="button primary"
-              onClick={() => setDialog({ kind: 'create' })}
-            >
-              Create a project
-            </button>
-          }
-        >
-          A project groups transactions, e.g. a holiday or a renovation, and can have a budget.
-        </EmptyState>
+        <Card>
+          <EmptyState
+            title="No projects yet"
+            action={
+              <Button variant="contained" onClick={create}>
+                Create a project
+              </Button>
+            }
+          >
+            A project groups transactions, e.g. a holiday or a renovation, and can have a budget.
+          </EmptyState>
+        </Card>
       ) : (
-        <ul className="project-grid">
+        <Box
+          component="ul"
+          sx={{
+            listStyle: 'none',
+            m: 0,
+            p: 0,
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
+          }}
+        >
           {projects.data.map((project) => (
-            <li
+            <Card
+              component="li"
               key={project.id}
-              className={`card project-card ${project.overBudget ? 'is-over' : ''}`}
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                borderColor: project.overBudget ? 'error.light' : undefined,
+              }}
             >
-              <h2 className="card-title">
-                <Link to={`/projects/${project.id}`}>{project.name}</Link>
-              </h2>
-              {project.description && <p className="muted clamp">{project.description}</p>}
-              <BudgetMeter project={project} />
-              <dl className="project-totals">
-                <div>
-                  <dt>Spent</dt>
-                  <dd>{formatChf(project.expenseCents)}</dd>
-                </div>
-                <div>
-                  <dt>Refilled</dt>
-                  <dd>{formatChf(project.incomeCents)}</dd>
-                </div>
-              </dl>
-              <div className="card-actions">
-                <button
-                  type="button"
-                  className="button ghost small"
+              <CardContent sx={{ flex: 1 }}>
+                <Stack spacing={1.5}>
+                  <Typography variant="h2">
+                    <Link href={`/projects/${project.id}`} underline="hover" color="inherit">
+                      {project.name}
+                    </Link>
+                  </Typography>
+                  {project.description && (
+                    <Typography variant="body2" color="text.secondary">
+                      {project.description}
+                    </Typography>
+                  )}
+                  <BudgetMeter project={project} />
+                  <Stack component="dl" direction="row" spacing={3} sx={{ m: 0 }}>
+                    <div>
+                      <Typography component="dt" variant="caption" color="text.secondary">
+                        Spent
+                      </Typography>
+                      <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600 }}>
+                        {formatChf(project.expenseCents)}
+                      </Typography>
+                    </div>
+                    <div>
+                      <Typography component="dt" variant="caption" color="text.secondary">
+                        Refilled
+                      </Typography>
+                      <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600 }}>
+                        {formatChf(project.incomeCents)}
+                      </Typography>
+                    </div>
+                  </Stack>
+                </Stack>
+              </CardContent>
+              <CardActions sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  size="small"
+                  startIcon={<EditOutlinedIcon />}
                   aria-label={`Edit ${project.name}`}
                   onClick={() => setDialog({ kind: 'edit', project })}
                 >
                   Edit
-                </button>
-                <button
-                  type="button"
-                  className="button ghost small danger-text"
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteOutlinedIcon />}
                   aria-label={`Delete ${project.name}`}
                   onClick={() => setDialog({ kind: 'delete', project })}
                 >
                   Delete
-                </button>
-              </div>
-            </li>
+                </Button>
+              </CardActions>
+            </Card>
           ))}
-        </ul>
+        </Box>
       )}
 
       {dialog?.kind === 'delete' && (
@@ -131,6 +170,6 @@ export function ProjectsPage() {
           />
         </Modal>
       )}
-    </div>
+    </Page>
   );
 }
