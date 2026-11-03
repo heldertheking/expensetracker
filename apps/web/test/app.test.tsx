@@ -25,6 +25,7 @@ function mockAll() {
     http.get('/api/accounts', () => HttpResponse.json(f.accounts())),
     http.get('/api/stats', () => HttpResponse.json(f.sampleStats())),
     http.get('/api/projects', () => HttpResponse.json(f.projectList())),
+    http.get('/api/projects/:id', () => HttpResponse.json(f.projects.holiday)),
     http.get('/api/events', () => HttpResponse.json(f.page([]))),
     http.get('/api/transactions', () => HttpResponse.json(f.page([]))),
   );
