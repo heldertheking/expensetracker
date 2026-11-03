@@ -15,6 +15,8 @@ describe('matchRoute', () => {
     ['/activity', { name: 'activity' }],
     ['/nope', { name: 'notFound' }],
     ['/projects/a/b', { name: 'notFound' }],
+    ['/projects/a%20b', { name: 'project', id: 'a b' }],
+    ['/projects/%E0%A4%A', { name: 'notFound' }],
   ])('%s', (path, route) => {
     expect(matchRoute(path)).toEqual(route);
   });
@@ -69,5 +71,10 @@ describe('App navigation', () => {
     expect(screen.getByText('Page not found')).toBeInTheDocument();
     act(() => navigate('/does-not-exist'));
     expect(screen.getByRole('link', { name: 'Go to the dashboard' })).toHaveAttribute('href', '/');
+  });
+
+  it('shows the not-found page instead of crashing on a malformed path', () => {
+    renderApp('/projects/%E0%A4%A');
+    expect(screen.getByText('Page not found')).toBeInTheDocument();
   });
 });
