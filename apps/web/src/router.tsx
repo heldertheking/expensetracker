@@ -20,7 +20,14 @@ export function matchRoute(pathname: string): Route {
   if (path === '/projects') return { name: 'projects' };
   if (path === '/activity') return { name: 'activity' };
   const project = /^\/projects\/([^/]+)$/.exec(path);
-  if (project) return { name: 'project', id: decodeURIComponent(project[1]!) };
+  if (project) {
+    try {
+      return { name: 'project', id: decodeURIComponent(project[1]!) };
+    } catch {
+      // a malformed escape such as %E0%A4%A is not a project
+      return { name: 'notFound' };
+    }
+  }
   return { name: 'notFound' };
 }
 
