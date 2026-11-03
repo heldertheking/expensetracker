@@ -16,3 +16,4 @@ Decisions that affect structure, tooling or conventions are recorded here in MAD
 | [0010](0010-accounts-and-project-tags.md)             | Every transaction belongs to an account, projects are tags   | accepted |
 | [0011](0011-database-migrations.md)                   | Versioned, forward-only database migrations                  | accepted |
 | [0012](0012-business-event-pipeline.md)               | Writes go through a business event pipeline                  | accepted |
+| [0013](0013-frontend-charts-and-structure.md)         | Web client: Recharts, small router, fetch hooks, CSS tokens  | accepted |
