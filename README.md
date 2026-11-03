@@ -30,9 +30,9 @@ Short version, details in [docs/testkonzept.md](docs/testkonzept.md).
 - **Unit tests** (Vitest) for services, with repositories mocked
 - **Integration tests** (Vitest + supertest) against the Express app and an in-memory SQLite database
 - **Component tests** (Testing Library + MSW) for the frontend
-- **Coverage** via `@vitest/coverage-v8`, JUnit XML + coverage uploaded as artifacts of the CI run
+- **Coverage** via `@vitest/coverage-v8` with thresholds that fail the pipeline; the reports are uploaded as artifacts of the CI run
 - **CI** (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`; build and test jobs run only when their module (or the shared schema) changed, then a validation job checks types, lint and formatting across the whole repo
-- **TDD** is applied at least once (balance calculation service)
+- **TDD** is applied to the calculation services in three red/green/refactor cycles; the pipeline and the TDD evidence are documented in [docs/ci-cd-and-tdd.md](docs/ci-cd-and-tdd.md)
 
 ## AI usage declaration
 
@@ -50,6 +50,7 @@ Most code is written by the author. AI is used primarily for research, help with
 - [Project plan](docs/plan.md)
 - [Architecture](docs/architecture.md)
 - [Test concept](docs/testkonzept.md)
+- [CI/CD pipeline and TDD evidence](docs/ci-cd-and-tdd.md)
 - [Reflection on TDD and code reviews](docs/reflexion.md)
 
 ## Checklist (M450 rubric)

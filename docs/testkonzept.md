@@ -43,7 +43,7 @@ _(TBD, refine as features are planned)_
 - **Integration tests** (Vitest + supertest): HTTP requests against the Express app with an in-memory SQLite database.
 - **Component tests** (Vitest + Testing Library): components rendered in jsdom, backend mocked with MSW.
 - **Mocking**: interfaces to other components (repository, HTTP API) are mocked to test one component at a time.
-- **TDD**: Red/Green/Refactor applied at least once, planned for the balance calculation service. Commits show the red and green steps.
+- **TDD**: Red/Green/Refactor applied to the calculation services (budget remainder, balances, statistics). The commits show the red and green steps with measured results: see [ci-cd-and-tdd.md](ci-cd-and-tdd.md).
 - **Coverage**: `@vitest/coverage-v8`, reported per module.
 
 ## 6. Item pass / fail criteria
@@ -61,7 +61,7 @@ Coverage target: the API (`apps/api`) enforces at least 90% lines, statements an
 ## 7. Test Deliverables
 
 - Test code in `packages/schema/test`, `apps/api/test` and `apps/web/test`
-- JUnit XML test reports and coverage reports (HTML, lcov), uploaded as CI artifacts
+- Coverage reports (HTML and JSON) per workspace, uploaded as CI artifacts; test results are in the job log and the Checks tab (JUnit XML is not produced yet, see [ci-cd-and-tdd.md](ci-cd-and-tdd.md))
 - This test concept
 - TDD and code review reflection ([reflexion.md](reflexion.md))
 
