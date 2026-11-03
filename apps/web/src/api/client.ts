@@ -93,7 +93,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   try {
     response = await fetch(path, init);
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    if (options.signal?.aborted) throw error;
     throw new ApiRequestError(0, 'network', 'The server could not be reached', []);
   }
   if (!response.ok) throw await toRequestError(response);
